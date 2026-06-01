@@ -1,0 +1,180 @@
+import React, { useState } from 'react'
+import { useApp } from '../store/AppContext'
+import { fmt, today, uid, pad } from '../utils/format'
+import Modal from './ui/Modal'
+import ImportModal from './import/ImportModal'
+
+const BLANK_ENTRY = () => ({ id: uid(), accountId: '', debit: '', credit: '' })
+
+export default function Transactions() {
+  const { data, addTransaction, deleteTransaction, importTransactions } = useApp()
+  const [modal, setModal]     = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [form, setForm]       = useState({ date: today(), ref: '', description: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
+  const [err, setErr]         = useState('')
+
+  const openNew = () => {
+    setForm({
+      date: today(),
+      ref: 'JE-' + pad(data.transactions.length + 1),
+      description: '',
+      entries: [BLANK_ENTRY(), BLANK_ENTRY()],
+    })
+    setErr(''); setModal(true)
+  }
+
+  const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const updateEntry = (id, key, val) =>
+    setForm(f => ({ ...f, entries: f.entries.map(e => e.id === id ? { ...e, [key]: val } : e) }))
+  const addEntry    = () => setForm(f => ({ ...f, entries: [...f.entries, BLANK_ENTRY()] }))
+  const removeEntry = (id) => setForm(f => ({ ...f, entries: f.entries.filter(e => e.id !== id) }))
+
+  const totalDebit  = form.entries.reduce((s, e) => s + (parseFloat(e.debit) || 0), 0)
+  const totalCredit = form.entries.reduce((s, e) => s + (parseFloat(e.credit) || 0), 0)
+  const balanced    = Math.abs(totalDebit - totalCredit) < 0.01
+
+  const save = () => {
+    if (!form.date)        return setErr('Date is required.')
+    if (!form.ref.trim())  return setErr('Reference is required.')
+    if (!form.description.trim()) return setErr('Description is required.')
+    const entries = form.entries.filter(e => e.accountId && (parseFloat(e.debit) || parseFloat(e.credit)))
+    if (entries.length < 2) return setErr('At least two entries required.')
+    if (!balanced)          return setErr('Debits must equal credits.')
+    addTransaction({ id: uid(), date: form.date, ref: form.ref, description: form.description, entries: entries.map(e => ({ accountId: e.accountId, debit: parseFloat(e.debit)||0, credit: parseFloat(e.credit)||0 })) })
+    setModal(false)
+  }
+
+  const accountOptions = () => {
+    const types = ['Asset','Liability','Equity','Revenue','Expense']
+    return types.flatMap(t => {
+      const accs = data.accounts.filter(a => a.type === t)
+      if (!accs.length) return []
+      return [{ isGroup: true, label: `${t}s` }, ...accs]
+    })
+  }
+
+  const renderAccountSelect = (entry) => (
+    <select className="form-select" value={entry.accountId} onChange={e => updateEntry(entry.id, 'accountId', e.target.value)}>
+      <option value="">— Select account —</option>
+      {accountOptions().map((opt, i) =>
+        opt.isGroup
+          ? <optgroup key={`g-${i}`} label={opt.label} />
+          : <option key={opt.id} value={opt.id}>{opt.code} — {opt.name}</option>
+      )}
+    </select>
+  )
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 20 }}>
+        <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
+        <button className="btn btn-primary" onClick={openNew}>+ Journal Entry</button>
+      </div>
+
+      <div className="card">
+        {data.transactions.length === 0
+          ? (
+            <div className="empty">
+              <div className="empty-icon">↕️</div>
+              <p>No journal entries yet.</p>
+              <button className="btn btn-primary" onClick={openNew}>+ New Journal Entry</button>
+            </div>
+          )
+          : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th><th>Reference</th><th>Description</th>
+                    <th className="text-right">Debit</th><th className="text-right">Credit</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...data.transactions].reverse().map(t => (
+                    <tr key={t.id}>
+                      <td className="text-muted">{t.date}</td>
+                      <td><strong>{t.ref}</strong></td>
+                      <td>{t.description}</td>
+                      <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.debit||0),0))}</td>
+                      <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.credit||0),0))}</td>
+                      <td>
+                        <button className="btn btn-danger btn-xs" onClick={() => { if (confirm('Delete this journal entry? Account balances will be reversed.')) deleteTransaction(t.id) }}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+      </div>
+
+      {/* Journal Entry Modal */}
+      <Modal
+        open={modal}
+        onClose={() => setModal(false)}
+        title="New Journal Entry"
+        size="modal-lg"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={save} disabled={!balanced && form.entries.some(e=>e.accountId)}>Post Entry</button>
+          </>
+        }
+      >
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        <div className="grid-3">
+          <div className="form-group">
+            <label className="form-label">Date</label>
+            <input className="form-input" type="date" value={form.date} onChange={e => setField('date', e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Reference #</label>
+            <input className="form-input" value={form.ref} onChange={e => setField('ref', e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <input className="form-input" value={form.description} onChange={e => setField('description', e.target.value)} />
+          </div>
+        </div>
+
+        <label className="form-label">Entries</label>
+        <table className="line-items">
+          <thead>
+            <tr>
+              <th style={{ width: '50%' }}>Account</th>
+              <th style={{ width: '20%' }}>Debit ($)</th>
+              <th style={{ width: '20%' }}>Credit ($)</th>
+              <th style={{ width: '10%' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {form.entries.map(entry => (
+              <tr key={entry.id}>
+                <td>{renderAccountSelect(entry)}</td>
+                <td><input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={entry.debit} onChange={e => updateEntry(entry.id, 'debit', e.target.value)} /></td>
+                <td><input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={entry.credit} onChange={e => updateEntry(entry.id, 'credit', e.target.value)} /></td>
+                <td><button className="del-btn" onClick={() => removeEntry(entry.id)}>✕</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button className="btn btn-secondary btn-sm" onClick={addEntry}>+ Add Entry</button>
+
+        <div style={{ marginTop: 12, fontSize: 13, padding: '8px 12px', borderRadius: 6, background: balanced ? 'var(--green-light)' : '#fee2e2' }}>
+          Debits: <strong>{fmt(totalDebit)}</strong> &nbsp;|&nbsp; Credits: <strong>{fmt(totalCredit)}</strong>
+          &nbsp; {balanced ? '✅ Balanced' : '⚠️ Not balanced'}
+        </div>
+      </Modal>
+
+      {/* Import Modal */}
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        type="transactions"
+        onImport={importTransactions}
+      />
+    </div>
+  )
+}

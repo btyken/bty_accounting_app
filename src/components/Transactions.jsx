@@ -1,11 +1,20 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
-import { fmt, today, uid, pad } from '../utils/format'
+import { fmt, today, uid, pad, getDateRange } from '../utils/format'
 import { DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
 
 const BLANK_ENTRY = () => ({ id: uid(), accountId: '', debit: '', credit: '' })
+
+const PERIODS = [
+  { id: 'all',       label: 'All' },
+  { id: 'weekly',    label: 'This Week' },
+  { id: 'monthly',   label: 'This Month' },
+  { id: 'quarterly', label: 'This Quarter' },
+  { id: 'annually',  label: 'This Year' },
+  { id: 'custom',    label: 'Custom Range' },
+]
 
 export default function Transactions() {
   const { data, addTransaction, updateTransactionMeta, deleteTransaction, importTransactions } = useApp()
@@ -14,6 +23,9 @@ export default function Transactions() {
   const [form, setForm]       = useState({ date: today(), ref: '', description: '', department: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
   const [err, setErr]         = useState('')
   const [deptFilter, setDeptFilter] = useState('')
+  const [period, setPeriod]   = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo,   setDateTo]   = useState('')
 
   const openNew = () => {
     setForm({
@@ -68,26 +80,85 @@ export default function Transactions() {
     </select>
   )
 
+  const activeRange = period === 'custom'
+    ? (dateFrom && dateTo ? [dateFrom, dateTo] : null)
+    : getDateRange(period)
+  const inDateRange = (date) => !activeRange || (date >= activeRange[0] && date <= activeRange[1])
+
   const visibleTransactions = [...data.transactions]
     .reverse()
-    .filter(t => !deptFilter || (t.department || '') === deptFilter)
+    .filter(t =>
+      (!deptFilter || (t.department || '') === deptFilter) &&
+      inDateRange(t.date)
+    )
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <select
-          className="form-select"
-          style={{ width: 'auto', minWidth: 200 }}
-          value={deptFilter}
-          onChange={e => setDeptFilter(e.target.value)}
-        >
-          <option value="">All Departments</option>
-          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
-          <button className="btn btn-primary" onClick={openNew}>+ Journal Entry</button>
+      {/* Filter bar */}
+      <div style={{ background: 'var(--white)', borderRadius: 8, boxShadow: 'var(--shadow)', padding: '14px 18px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+          {/* Period buttons */}
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {PERIODS.map(p => (
+              <button
+                key={p.id}
+                className={`btn btn-sm ${period === p.id ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setPeriod(p.id)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {/* Department + actions */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              className="form-select"
+              style={{ width: 'auto', minWidth: 200 }}
+              value={deptFilter}
+              onChange={e => setDeptFilter(e.target.value)}
+            >
+              <option value="">All Departments</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
+            <button className="btn btn-primary" onClick={openNew}>+ Journal Entry</button>
+          </div>
         </div>
+
+        {/* Custom date inputs */}
+        {period === 'custom' && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>From</span>
+            <input
+              className="form-input"
+              type="date"
+              style={{ width: 'auto' }}
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+            />
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>To</span>
+            <input
+              className="form-input"
+              type="date"
+              style={{ width: 'auto' }}
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+            />
+            {dateFrom && dateTo && (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Showing {dateFrom} — {dateTo}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Active range label for preset periods */}
+        {period !== 'all' && period !== 'custom' && activeRange && (
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+            Showing: <strong>{activeRange[0]}</strong> — <strong>{activeRange[1]}</strong>
+            &nbsp;·&nbsp; {visibleTransactions.length} result{visibleTransactions.length !== 1 ? 's' : ''}
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -103,7 +174,7 @@ export default function Transactions() {
           ? (
             <div className="empty">
               <div className="empty-icon">🔍</div>
-              <p>No journal entries for this department.</p>
+              <p>No journal entries match the selected filters.</p>
             </div>
           )
           : (

@@ -113,10 +113,14 @@ export function AuthProvider({ children }) {
   }
 
   const changePassword = async (id, newPassword) => {
-    if (newPassword.length < 6) return { error: 'Password must be at least 6 characters.' }
-    const hash = await hashPassword(newPassword)
-    await updateDoc(doc(db, 'users', id), { passwordHash: hash })
-    return { success: true }
+    if (!newPassword || newPassword.length < 6) return { error: 'Password must be at least 6 characters.' }
+    try {
+      const hash = await hashPassword(newPassword)
+      await updateDoc(doc(db, 'users', id), { passwordHash: hash })
+      return { success: true }
+    } catch (e) {
+      return { error: e.message || 'Failed to update password.' }
+    }
   }
 
   return (

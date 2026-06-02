@@ -1,21 +1,18 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyAOPZlbbhIgWYwSJP1YiHcJFuOjqnMP10U",
-  authDomain: "bty-accounting-app.firebaseapp.com",
-  projectId: "bty-accounting-app",
-  storageBucket: "bty-accounting-app.firebasestorage.app",
-  messagingSenderId: "435208406243",
-  appId: "1:435208406243:web:106bd12d3297e7c019b1d6",
-  measurementId: "G-G5L6HC4E9G"
+  apiKey: "AIzaSyC_KnyjQcD-tB97063XFj2TbWaQ6djAR9U",
+  authDomain: "bty-accounting-app-2.firebaseapp.com",
+  projectId: "bty-accounting-app-2",
+  storageBucket: "bty-accounting-app-2.firebasestorage.app",
+  messagingSenderId: "1076057122670",
+  appId: "1:1076057122670:web:a7be7b6ea2dfd04375c37f",
+  measurementId: "G-KE4JQBJK56"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
+export const db = getFirestore(app);

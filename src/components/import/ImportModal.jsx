@@ -102,19 +102,19 @@ export default function ImportModal({ open, onClose, type, onImport }) {
         ))}</tbody></table>
     )
     if (type === 'expenses') return (
-      <table><thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Method</th><th className="text-right">Amount</th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Department</th><th>Method</th><th className="text-right">Amount</th></tr></thead>
         <tbody>{records.slice(0, 20).map((r, i) => {
           const acc = data.accounts.find(a => a.id === r.accountId)
           return (
             <tr key={i}><td>{r.date}</td><td>{r.vendor}</td>
-              <td>{acc ? acc.name : '—'}</td><td>{r.method}</td>
+              <td>{acc ? acc.name : '—'}</td><td>{r.department || '—'}</td><td>{r.method}</td>
               <td className="text-right amount-neg">{fmt(r.amount)}</td>
             </tr>
           )
         })}</tbody></table>
     )
     if (type === 'transactions') return (
-      <table><thead><tr><th>Reference</th><th>Date</th><th>Description</th><th>Entries</th><th>Balance</th></tr></thead>
+      <table><thead><tr><th>Reference</th><th>Date</th><th>Description</th><th>Department</th><th>Entries</th><th>Balance</th></tr></thead>
         <tbody>{records.slice(0, 20).map((r, i) => {
           const dr = r.entries.reduce((s,e)=>s+e.debit,0)
           const cr = r.entries.reduce((s,e)=>s+e.credit,0)
@@ -122,6 +122,7 @@ export default function ImportModal({ open, onClose, type, onImport }) {
           return (
             <tr key={i} style={r.unbalanced ? { background:'#fffbeb' } : {}}>
               <td>{r.ref}</td><td>{r.date}</td><td>{r.description}</td>
+              <td>{r.department || '—'}</td>
               <td>{r.entries.length} lines</td>
               <td>{ok
                 ? <span className="badge badge-green">✓ OK</span>

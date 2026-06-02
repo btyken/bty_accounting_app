@@ -13,6 +13,7 @@ export default function Transactions() {
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm]       = useState({ date: today(), ref: '', description: '', department: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
   const [err, setErr]         = useState('')
+  const [deptFilter, setDeptFilter] = useState('')
 
   const openNew = () => {
     setForm({
@@ -67,11 +68,26 @@ export default function Transactions() {
     </select>
   )
 
+  const visibleTransactions = [...data.transactions]
+    .reverse()
+    .filter(t => !deptFilter || (t.department || '') === deptFilter)
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 20 }}>
-        <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
-        <button className="btn btn-primary" onClick={openNew}>+ Journal Entry</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+        <select
+          className="form-select"
+          style={{ width: 'auto', minWidth: 200 }}
+          value={deptFilter}
+          onChange={e => setDeptFilter(e.target.value)}
+        >
+          <option value="">All Departments</option>
+          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
+          <button className="btn btn-primary" onClick={openNew}>+ Journal Entry</button>
+        </div>
       </div>
 
       <div className="card">
@@ -83,21 +99,29 @@ export default function Transactions() {
               <button className="btn btn-primary" onClick={openNew}>+ New Journal Entry</button>
             </div>
           )
+          : visibleTransactions.length === 0
+          ? (
+            <div className="empty">
+              <div className="empty-icon">🔍</div>
+              <p>No journal entries for this department.</p>
+            </div>
+          )
           : (
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th><th>Reference</th><th>Description</th>
+                    <th>Date</th><th>Reference</th><th>Description</th><th>Department</th>
                     <th className="text-right">Debit</th><th className="text-right">Credit</th><th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...data.transactions].reverse().map(t => (
+                  {visibleTransactions.map(t => (
                     <tr key={t.id}>
                       <td className="text-muted">{t.date}</td>
                       <td><strong>{t.ref}</strong></td>
                       <td>{t.description}</td>
+                      <td className="text-muted">{t.department || '—'}</td>
                       <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.debit||0),0))}</td>
                       <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.credit||0),0))}</td>
                       <td>

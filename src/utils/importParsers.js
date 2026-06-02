@@ -25,24 +25,24 @@ export const IMPORT_TEMPLATES = {
   },
   expenses: {
     label: 'Expenses',
-    headers: ['Date', 'Vendor', 'Category', 'Amount', 'PaymentMethod', 'Description'],
+    headers: ['Date', 'Vendor', 'Category', 'Amount', 'PaymentMethod', 'Department', 'Description'],
     sample: [
-      ['2024-01-10', 'Office Depot', 'Office Supplies', 85.50, 'Credit Card', 'Printer paper and pens'],
-      ['2024-01-15', 'WeWork', 'Rent Expense', 2000, 'Bank Transfer', 'Monthly office rent'],
-      ['2024-01-20', 'Google Ads', 'Marketing & Advertising', 450, 'Credit Card', 'Ad spend Jan'],
+      ['2024-01-10', 'Office Depot', 'Office Supplies', 85.50, 'Credit Card', 'Office Administration Department', 'Printer paper and pens'],
+      ['2024-01-15', 'WeWork', 'Rent Expense', 2000, 'Bank Transfer', 'Executive Department', 'Monthly office rent'],
+      ['2024-01-20', 'Google Ads', 'Marketing & Advertising', 450, 'Credit Card', 'Marketing Department', 'Ad spend Jan'],
     ],
-    notes: 'Category must match an account name in your Chart of Accounts',
+    notes: 'Category must match an account name in your Chart of Accounts. Department is optional.',
   },
   transactions: {
     label: 'Journal Entries',
-    headers: ['Reference', 'Date', 'Description', 'Account', 'Debit', 'Credit'],
+    headers: ['Reference', 'Date', 'Description', 'Department', 'Account', 'Debit', 'Credit'],
     sample: [
-      ['JE-001', '2024-01-01', 'Opening entry', 'Cash', 5000, 0],
-      ['JE-001', '2024-01-01', 'Opening entry', "Owner's Equity", 0, 5000],
-      ['JE-002', '2024-01-05', 'Equipment purchase', 'Equipment', 1200, 0],
-      ['JE-002', '2024-01-05', 'Equipment purchase', 'Cash', 0, 1200],
+      ['JE-001', '2024-01-01', 'Opening entry', 'Executive Department', 'Cash', 5000, 0],
+      ['JE-001', '2024-01-01', 'Opening entry', '', "Owner's Equity", 0, 5000],
+      ['JE-002', '2024-01-05', 'Equipment purchase', 'Office Administration Department', 'Equipment', 1200, 0],
+      ['JE-002', '2024-01-05', 'Equipment purchase', '', 'Cash', 0, 1200],
     ],
-    notes: 'Multiple rows with same Reference = one journal entry. Debits must equal Credits per Reference.',
+    notes: 'Multiple rows with same Reference = one journal entry. Debits must equal Credits per Reference. Department applies to the whole entry (set on first row).',
   },
 }
 
@@ -187,12 +187,13 @@ export function parseExpenses(rows, accounts) {
       const idx = headers.indexOf(normH(key))
       return idx >= 0 ? row[idx] : ''
     }
-    const date     = normalizeDate(get('date') || '')
-    const vendor   = String(get('vendor') || get('payee') || get('vendorname') || '').trim()
-    const category = String(get('category') || get('account') || get('expensetype') || '').trim()
-    const amount   = parseFloat(get('amount') || 0)
-    const method   = String(get('paymentmethod') || get('method') || 'Cash').trim()
-    const desc     = String(get('description') || get('notes') || get('memo') || '').trim()
+    const date       = normalizeDate(get('date') || '')
+    const vendor     = String(get('vendor') || get('payee') || get('vendorname') || '').trim()
+    const category   = String(get('category') || get('account') || get('expensetype') || '').trim()
+    const amount     = parseFloat(get('amount') || 0)
+    const method     = String(get('paymentmethod') || get('method') || 'Cash').trim()
+    const department = String(get('department') || get('dept') || '').trim()
+    const desc       = String(get('description') || get('notes') || get('memo') || '').trim()
 
     if (!date)   { errors.push(`Row ${i + 2}: Missing or invalid date`); return }
     if (!vendor) { errors.push(`Row ${i + 2}: Missing vendor`); return }
@@ -217,6 +218,7 @@ export function parseExpenses(rows, accounts) {
       accountId,
       amount,
       method: method || 'Cash',
+      department,
       description: desc,
     })
   })
@@ -246,12 +248,13 @@ export function parseTransactions(rows, accounts) {
 
     const rawRef = String(get('reference') || get('ref') || get('journalentry') || '').trim()
     const isContinuation = rawRef === '' || rawRef === '↳'
-    const ref    = isContinuation ? (current?.ref || `JE-IMP-${i}`) : rawRef
-    const date   = normalizeDate(get('date') || '')
-    const desc   = String(get('description') || get('memo') || '').trim()
-    const accStr = String(get('account') || get('accountname') || get('accountcode') || '').trim()
-    const debit  = parseFloat(get('debit')  || get('dr') || 0) || 0
-    const credit = parseFloat(get('credit') || get('cr') || 0) || 0
+    const ref        = isContinuation ? (current?.ref || `JE-IMP-${i}`) : rawRef
+    const date       = normalizeDate(get('date') || '')
+    const desc       = String(get('description') || get('memo') || '').trim()
+    const department = String(get('department') || get('dept') || '').trim()
+    const accStr     = String(get('account') || get('accountname') || get('accountcode') || '').trim()
+    const debit      = parseFloat(get('debit')  || get('dr') || 0) || 0
+    const credit     = parseFloat(get('credit') || get('cr') || 0) || 0
 
     if (!date) { errors.push(`Row ${i + 2}: Missing date — skipped`); return }
 
@@ -262,8 +265,10 @@ export function parseTransactions(rows, accounts) {
 
     if (!isContinuation || !current) {
       // Start a new journal entry
-      current = { id: uid(), ref, date, description: desc || ref, entries: [] }
+      current = { id: uid(), ref, date, description: desc || ref, department, entries: [] }
       entries.push(current)
+    } else if (department && !current.department) {
+      current.department = department
     }
     current.entries.push({ accountId, debit, credit })
   })

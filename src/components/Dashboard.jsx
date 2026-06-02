@@ -6,21 +6,32 @@ export default function Dashboard({ onNavigate }) {
   const { data, accName } = useApp()
   const { accounts, invoices, expenses } = data
 
+  const journalExpenses = (data.transactions || []).flatMap(txn =>
+    txn.entries
+      .filter(e => {
+        const acc = data.accounts.find(a => a.id === e.accountId)
+        return acc?.type === 'Expense' && e.debit > 0
+      })
+      .map(e => ({ id: `${txn.id}-${e.accountId}`, date: txn.date, vendor: txn.description, accountId: e.accountId, amount: e.debit }))
+  )
+  const allExpenses = [...expenses, ...journalExpenses]
+
   const totalRevenue  = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.total, 0)
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
+  const totalExpenses = allExpenses.reduce((s, e) => s + e.amount, 0)
   const netIncome     = totalRevenue - totalExpenses
   const outstanding   = invoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.total, 0)
   const cash          = accounts.find(a => a.id === 'a1')?.balance || 0
 
   const months = getLast6Months()
+
   const monthlyData = months.map(m => ({
     month:   m.slice(5),
     income:  invoices.filter(i => i.status === 'paid' && i.date.startsWith(m)).reduce((s, i) => s + i.total, 0),
-    expense: expenses.filter(e => e.date.startsWith(m)).reduce((s, e) => s + e.amount, 0),
+    expense: allExpenses.filter(e => e.date.startsWith(m)).reduce((s, e) => s + e.amount, 0),
   }))
   const maxBar = Math.max(...monthlyData.flatMap(m => [m.income, m.expense]), 1)
 
-  const recentExpenses = [...expenses].reverse().slice(0, 5)
+  const recentExpenses = [...allExpenses].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
   const unpaidInvoices = invoices.filter(i => i.status !== 'paid').slice(0, 5)
 
   return (

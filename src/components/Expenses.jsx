@@ -22,6 +22,7 @@ export default function Expenses() {
   const [form, setForm]           = useState(BLANK)
   const [err, setErr]             = useState('')
   const [period, setPeriod]       = useState('all')
+  const [deptFilter, setDeptFilter] = useState('')
 
   const expenseAccounts = data.accounts.filter(a => a.type === 'Expense')
 
@@ -45,15 +46,18 @@ export default function Expenses() {
   const range = getDateRange(period)
   const inRange = (date) => !range || (date >= range[0] && date <= range[1])
 
-  // Direct expenses filtered by period
-  const filteredExpenses = data.expenses.filter(e => inRange(e.date))
+  const matchesDept = (dept) => !deptFilter || (dept || '') === deptFilter
+
+  // Direct expenses filtered by period + department
+  const filteredExpenses = data.expenses.filter(e => inRange(e.date) && matchesDept(e.department))
 
   // Journal-entry-based expenses: any transaction entry that debits an expense account
   const journalExpenses = []
   ;(data.transactions || []).forEach(txn => {
+    if (!inRange(txn.date) || !matchesDept(txn.department)) return
     txn.entries.forEach(e => {
       const acc = data.accounts.find(a => a.id === e.accountId)
-      if (acc?.type === 'Expense' && e.debit > 0 && inRange(txn.date)) {
+      if (acc?.type === 'Expense' && e.debit > 0) {
         journalExpenses.push({
           id: `${txn.id}-${e.accountId}`,
           date: txn.date,
@@ -87,18 +91,29 @@ export default function Expenses() {
         <div className="card"><div className="card-title">Avg Expense</div><div className="card-value">{count ? fmt(avg) : '₱0.00'}</div></div>
       </div>
 
-      {/* Period filter + actions */}
+      {/* Period filter + department filter + actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {PERIODS.map(p => (
-            <button
-              key={p.id}
-              className={`btn btn-sm ${period === p.id ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setPeriod(p.id)}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {PERIODS.map(p => (
+              <button
+                key={p.id}
+                className={`btn btn-sm ${period === p.id ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setPeriod(p.id)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <select
+            className="form-select"
+            style={{ width: 'auto', minWidth: 180 }}
+            value={deptFilter}
+            onChange={e => setDeptFilter(e.target.value)}
+          >
+            <option value="">All Departments</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>

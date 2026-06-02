@@ -1,6 +1,13 @@
 import React from 'react'
 import { useApp } from '../../store/AppContext'
 import { fmt } from '../../utils/format'
+import PieChart from '../ui/PieChart'
+
+const COLORS = [
+  '#111111', '#1e40af', '#dc2626', '#d97706', '#065f46',
+  '#7c3aed', '#be185d', '#0e7490', '#047857', '#9a3412',
+  '#3730a3', '#6b21a8',
+]
 
 function Section({ title, icon, accounts, extras = [] }) {
   const total = accounts.reduce((s, a) => s + a.balance, 0) + extras.reduce((s, r) => s + r.val, 0)
@@ -44,8 +51,16 @@ export default function BalanceSheet() {
   const totalLiabEquity  = totalLiabilities + totalEquity
   const balanced         = Math.abs(totalAssets - totalLiabEquity) < 0.01
 
+  const assetSlices = assets
+    .filter(a => a.balance > 0)
+    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: totalAssets ? a.balance / totalAssets * 100 : 0 }))
+
+  const liabSlices = liabilities
+    .filter(a => a.balance > 0)
+    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: totalLiabilities ? a.balance / totalLiabilities * 100 : 0 }))
+
   return (
-    <div className="card" style={{ maxWidth: 780, margin: '0 auto' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Report</div>
         <h2 style={{ fontSize: 22, margin: '4px 0' }}>Balance Sheet</h2>
@@ -54,6 +69,47 @@ export default function BalanceSheet() {
         </div>
       </div>
 
+      {/* Pie charts row */}
+      {(assetSlices.length > 0 || liabSlices.length > 0) && (
+        <div className="grid-2" style={{ marginBottom: 20 }}>
+          {assetSlices.length > 0 && (
+            <div className="card">
+              <div className="section-header">🏦 Assets Breakdown</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <PieChart slices={assetSlices} />
+                <div style={{ marginTop: 10, width: '100%' }}>
+                  {assetSlices.map(s => (
+                    <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 13 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{s.label}</span>
+                      <strong>{s.pct.toFixed(1)}%</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {liabSlices.length > 0 && (
+            <div className="card">
+              <div className="section-header">📋 Liabilities Breakdown</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <PieChart slices={liabSlices} />
+                <div style={{ marginTop: 10, width: '100%' }}>
+                  {liabSlices.map(s => (
+                    <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 13 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{s.label}</span>
+                      <strong>{s.pct.toFixed(1)}%</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="card">
       <div className="table-wrap">
         <table>
           <tbody>
@@ -78,6 +134,7 @@ export default function BalanceSheet() {
             </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   )

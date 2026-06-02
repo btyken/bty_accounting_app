@@ -20,7 +20,7 @@ function AppInner() {
   const { appReady } = useApp()
   const [page, setPage] = useState('dashboard')
 
-  if (users === null || !appReady) {
+  if (!appReady || (!currentUser && users === null)) {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',

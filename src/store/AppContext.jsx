@@ -16,21 +16,31 @@ function migrateFromLocalStorage() {
   }
 }
 
+const CACHE_KEY = 'qb_appdata_cache'
+
+function loadCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY)) } catch { return null }
+}
+
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [data,    setData]    = useState(null)
-  const [appReady, setAppReady] = useState(false)
+  const cached = loadCache()
+  const [data,    setData]    = useState(cached)
+  const [appReady, setAppReady] = useState(!!cached)
 
   useEffect(() => {
     const unsub = onSnapshot(APP_DOC, (snap) => {
       if (snap.exists()) {
-        setData(snap.data())
+        const d = snap.data()
+        setData(d)
+        localStorage.setItem(CACHE_KEY, JSON.stringify(d))
       } else {
         // First run: migrate from localStorage or use defaults
         const initial = migrateFromLocalStorage()
         setDoc(APP_DOC, initial)
         setData(initial)
+        localStorage.setItem(CACHE_KEY, JSON.stringify(initial))
       }
       setAppReady(true)
     })

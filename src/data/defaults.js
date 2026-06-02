@@ -21,3 +21,23 @@ export const DEFAULT_ACCOUNTS = [
 
 export const ACCOUNT_TYPES = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']
 export const PAYMENT_METHODS = ['Cash', 'Credit Card', 'Bank Transfer', 'Check', 'ACH']
+
+export const DEPARTMENTS = [
+  'Accounting & Finance Department',
+  'CDM Department',
+  'Creatives Department',
+  'CRM Department',
+  'Executional Elevation Unit Department',
+  'Executive Department',
+  'Fulfillment Department',
+  'Management',
+  'Marketing Department',
+  'Office Administration Department',
+  'People and Culture Department',
+  'Product and Development Department',
+  'Sales Department',
+  'Supply Chain Department',
+  'Web Sales Department',
+  'Others (Fellowship)',
+  'Outsource',
+]

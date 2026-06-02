@@ -13,6 +13,7 @@ function migrateFromLocalStorage() {
     invoices:     get('qb_invoices')     || [],
     expenses:     get('qb_expenses')     || [],
     transactions: get('qb_transactions') || [],
+    pettyCash:    [],
   }
 }
 
@@ -33,8 +34,11 @@ export function AppProvider({ children }) {
     const unsub = onSnapshot(APP_DOC, (snap) => {
       if (snap.exists()) {
         const d = snap.data()
-        setData(d)
-        localStorage.setItem(CACHE_KEY, JSON.stringify(d))
+        // Migrate: add pettyCash array if missing from older data
+        const migrated = d.pettyCash ? d : { pettyCash: [], ...d }
+        if (!d.pettyCash) setDoc(APP_DOC, migrated)
+        setData(migrated)
+        localStorage.setItem(CACHE_KEY, JSON.stringify(migrated))
       } else {
         // First run: migrate from localStorage or use defaults
         const initial = migrateFromLocalStorage()
@@ -228,6 +232,19 @@ export function AppProvider({ children }) {
     persist(next)
   }, [data, persist])
 
+  // ── Petty Cash ───────────────────────────────────────────────
+  const nextPCNum = useCallback(() =>
+    'PC-' + pad((data.pettyCash?.length || 0) + 1), [data])
+
+  const addPettyCash = useCallback((item) => {
+    const newItem = { id: uid(), number: nextPCNum(), ...item }
+    persist({ ...data, pettyCash: [...(data.pettyCash || []), newItem] })
+  }, [data, persist, nextPCNum])
+
+  const deletePettyCash = useCallback((id) => {
+    persist({ ...data, pettyCash: (data.pettyCash || []).filter(p => p.id !== id) })
+  }, [data, persist])
+
   const accName = useCallback((id) =>
     (data?.accounts.find(a => a.id === id) || {}).name || '—', [data])
 
@@ -240,6 +257,7 @@ export function AppProvider({ children }) {
       addInvoice, updateInvoice, deleteInvoice, importInvoices, nextInvoiceNum,
       addExpense, deleteExpense, importExpenses, nextExpNum,
       addTransaction, deleteTransaction, importTransactions,
+      addPettyCash, deletePettyCash, nextPCNum,
     }}>
       {children}
     </AppContext.Provider>

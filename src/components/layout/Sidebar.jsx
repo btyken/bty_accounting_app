@@ -1,5 +1,6 @@
 import React from 'react'
 import { useAuth } from '../../store/AuthContext'
+import logo from '../../assets/logo.svg'
 
 const NAV = [
   { section: 'Overview', items: [{ id: 'dashboard', icon: '📊', label: 'Dashboard' }] },
@@ -13,15 +14,17 @@ const NAV = [
   {
     section: 'Money In / Out',
     items: [
-      { id: 'invoices', icon: '🧾', label: 'Invoices' },
-      { id: 'expenses', icon: '💳', label: 'Expenses' },
+      { id: 'invoices',   icon: '🧾', label: 'Invoices' },
+      { id: 'expenses',   icon: '💳', label: 'Expenses' },
+      { id: 'pettycash',  icon: '💵', label: 'Petty Cash' },
     ],
   },
   {
     section: 'Reports',
     items: [
-      { id: 'pl',      icon: '📈', label: 'Profit & Loss' },
-      { id: 'balance', icon: '⚖️', label: 'Balance Sheet' },
+      { id: 'pl',        icon: '📈', label: 'Profit & Loss' },
+      { id: 'balance',   icon: '⚖️', label: 'Balance Sheet' },
+      { id: 'expreport', icon: '📋', label: 'Expense Report' },
     ],
   },
 ]
@@ -32,7 +35,7 @@ export default function Sidebar({ page, onNavigate }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-logo">
-        <span className="dot">●</span> BTY Accounting App
+        <img src={logo} alt="Spartan BTY Inc." style={{ width: '100%', maxWidth: 160, display: 'block', margin: '0 auto', filter: 'invert(1)' }} />
       </div>
 
       {NAV.map(({ section, items }) => (

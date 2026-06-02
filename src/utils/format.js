@@ -42,6 +42,36 @@ export function typeBadge(t) {
   }[t] || 'badge-gray'
 }
 
+export function getDateRange(period) {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth()
+  switch (period) {
+    case 'weekly': {
+      const diff = (now.getDay() + 6) % 7
+      const mon = new Date(y, m, now.getDate() - diff)
+      const sun = new Date(y, m, now.getDate() - diff + 6)
+      return [mon.toISOString().slice(0, 10), sun.toISOString().slice(0, 10)]
+    }
+    case 'monthly':
+      return [
+        new Date(y, m, 1).toISOString().slice(0, 10),
+        new Date(y, m + 1, 0).toISOString().slice(0, 10),
+      ]
+    case 'quarterly': {
+      const q = Math.floor(m / 3)
+      return [
+        new Date(y, q * 3, 1).toISOString().slice(0, 10),
+        new Date(y, q * 3 + 3, 0).toISOString().slice(0, 10),
+      ]
+    }
+    case 'annually':
+      return [`${y}-01-01`, `${y}-12-31`]
+    default:
+      return null
+  }
+}
+
 // Normalize a date string from Excel (could be serial number or string)
 export function normalizeDate(val) {
   if (!val) return ''

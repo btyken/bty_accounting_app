@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { fmt, today, uid, pad } from '../utils/format'
+import { DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
 
@@ -10,7 +11,7 @@ export default function Transactions() {
   const { data, addTransaction, deleteTransaction, importTransactions } = useApp()
   const [modal, setModal]     = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  const [form, setForm]       = useState({ date: today(), ref: '', description: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
+  const [form, setForm]       = useState({ date: today(), ref: '', description: '', department: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
   const [err, setErr]         = useState('')
 
   const openNew = () => {
@@ -18,6 +19,7 @@ export default function Transactions() {
       date: today(),
       ref: 'JE-' + pad(data.transactions.length + 1),
       description: '',
+      department: '',
       entries: [BLANK_ENTRY(), BLANK_ENTRY()],
     })
     setErr(''); setModal(true)
@@ -41,7 +43,7 @@ export default function Transactions() {
     const entries = form.entries.filter(e => e.accountId && (parseFloat(e.debit) || parseFloat(e.credit)))
     if (entries.length < 2) return setErr('At least two entries required.')
     if (!balanced)          return setErr('Debits must equal credits.')
-    addTransaction({ id: uid(), date: form.date, ref: form.ref, description: form.description, entries: entries.map(e => ({ accountId: e.accountId, debit: parseFloat(e.debit)||0, credit: parseFloat(e.credit)||0 })) })
+    addTransaction({ id: uid(), date: form.date, ref: form.ref, description: form.description, department: form.department, entries: entries.map(e => ({ accountId: e.accountId, debit: parseFloat(e.debit)||0, credit: parseFloat(e.credit)||0 })) })
     setModal(false)
   }
 
@@ -137,6 +139,13 @@ export default function Transactions() {
             <label className="form-label">Description</label>
             <input className="form-input" value={form.description} onChange={e => setField('description', e.target.value)} />
           </div>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Department</label>
+          <select className="form-select" value={form.department} onChange={e => setField('department', e.target.value)}>
+            <option value="">— Select Department (optional) —</option>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
         </div>
 
         <label className="form-label">Entries</label>

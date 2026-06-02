@@ -8,6 +8,8 @@ const TITLES = {
   expenses:     'Expenses',
   pl:           'Profit & Loss',
   balance:      'Balance Sheet',
+  expreport:    'Expense Report',
+  pettycash:    'Petty Cash Liquidation',
   users:        'User Management',
 }
 

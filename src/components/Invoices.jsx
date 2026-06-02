@@ -1,21 +1,30 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { fmt, today, uid, statusBadge } from '../utils/format'
+import { generateInvoiceHTML, printInvoice } from '../utils/invoicePrint'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
 
-const BLANK_ITEM = () => ({ id: uid(), description: '', qty: 1, rate: 0, amount: 0 })
+const BLANK_ITEM = () => ({ id: uid(), skuCode: '', description: '', qty: 1, rate: 0, amount: 0 })
 
 function newForm(nextNum) {
   const due = new Date(); due.setDate(due.getDate() + 30)
   return {
-    number:   nextNum,
-    customer: '',
-    date:     today(),
-    dueDate:  due.toISOString().split('T')[0],
-    notes:    '',
-    status:   'draft',
-    lineItems: [BLANK_ITEM()],
+    number:        nextNum,
+    customer:      '',
+    billToAddress: '',
+    shipToName:    '',
+    shipToAddress: '',
+    salesPerson:   '',
+    terms:         '',
+    shipVia:       '',
+    customerNo:    '',
+    shippingCost:  0,
+    date:          today(),
+    dueDate:       due.toISOString().split('T')[0],
+    notes:         '',
+    status:        'draft',
+    lineItems:     [BLANK_ITEM()],
   }
 }
 
@@ -23,11 +32,12 @@ const TABS = ['all', 'draft', 'sent', 'paid', 'overdue']
 
 export default function Invoices() {
   const { data, addInvoice, updateInvoice, deleteInvoice, importInvoices, nextInvoiceNum } = useApp()
-  const [tab, setTab]         = useState('all')
-  const [modal, setModal]     = useState(false)
+  const [tab, setTab]           = useState('all')
+  const [modal, setModal]       = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  const [form, setForm]       = useState(() => newForm('INV-0001'))
-  const [err, setErr]         = useState('')
+  const [form, setForm]         = useState(() => newForm('INV-0001'))
+  const [err, setErr]           = useState('')
+  const [viewInv, setViewInv]   = useState(null)
 
   const openNew = () => { setForm(newForm(nextInvoiceNum())); setErr(''); setModal(true) }
 
@@ -47,14 +57,16 @@ export default function Invoices() {
   const addItem    = () => setForm(f => ({ ...f, lineItems: [...f.lineItems, BLANK_ITEM()] }))
   const removeItem = (id) => setForm(f => ({ ...f, lineItems: f.lineItems.filter(i => i.id !== id) }))
 
-  const subtotal = form.lineItems.reduce((s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0), 0)
+  const subtotal  = form.lineItems.reduce((s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0), 0)
+  const shipping  = parseFloat(form.shippingCost) || 0
+  const grandTotal = subtotal + shipping
 
   const save = () => {
     if (!form.customer.trim()) return setErr('Customer name is required.')
     if (!form.date)             return setErr('Invoice date is required.')
-    const lineItems = form.lineItems.filter(i => i.description || i.rate)
+    const lineItems = form.lineItems.filter(i => i.description || i.rate || i.skuCode)
     if (!lineItems.length)      return setErr('Add at least one line item.')
-    addInvoice({ ...form, lineItems, total: subtotal })
+    addInvoice({ ...form, lineItems, total: grandTotal })
     setModal(false)
   }
 
@@ -105,6 +117,7 @@ export default function Invoices() {
                       <td className="text-right"><strong>{fmt(inv.total)}</strong></td>
                       <td><span className={`badge ${statusBadge(inv.status)}`}>{inv.status}</span></td>
                       <td className="text-right" style={{ whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-secondary btn-xs" onClick={() => setViewInv(inv)}>View</button>{' '}
                         {inv.status !== 'paid' && (
                           <>
                             <button className="btn btn-secondary btn-xs" onClick={() => updateInvoice(inv.id, { status: 'sent' })}>Send</button>{' '}
@@ -122,12 +135,36 @@ export default function Invoices() {
         }
       </div>
 
+      {/* View Invoice Modal */}
+      {viewInv && (
+        <Modal
+          open={!!viewInv}
+          onClose={() => setViewInv(null)}
+          title={`Sales Order — ${viewInv.number}`}
+          size="modal-xl"
+          footer={
+            <>
+              <button className="btn btn-secondary" onClick={() => setViewInv(null)}>Close</button>
+              <button className="btn btn-primary" onClick={() => printInvoice(viewInv)}>
+                🖨️ Print / Download PDF
+              </button>
+            </>
+          }
+        >
+          <iframe
+            srcDoc={generateInvoiceHTML(viewInv)}
+            style={{ width: '100%', height: 560, border: '1px solid #e5e7eb', borderRadius: 4 }}
+            title="Invoice Preview"
+          />
+        </Modal>
+      )}
+
       {/* New Invoice Modal */}
       <Modal
         open={modal}
         onClose={() => setModal(false)}
         title="New Invoice"
-        size="modal-lg"
+        size="modal-xl"
         footer={
           <>
             <button className="btn btn-secondary" onClick={() => setModal(false)}>Cancel</button>
@@ -136,36 +173,85 @@ export default function Invoices() {
         }
       >
         {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
-        <div className="grid-3">
-          <div className="form-group">
-            <label className="form-label">Customer Name</label>
-            <input className="form-input" value={form.customer} onChange={e => setField('customer', e.target.value)} placeholder="Customer / Company" />
-          </div>
-          <div className="form-group">
+
+        {/* Order Info */}
+        <div className="grid-3" style={{ marginBottom: 16 }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Invoice Date</label>
             <input className="form-input" type="date" value={form.date} onChange={e => setField('date', e.target.value)} />
           </div>
-          <div className="form-group">
+          <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Due Date</label>
             <input className="form-input" type="date" value={form.dueDate} onChange={e => setField('dueDate', e.target.value)} />
           </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Customer No.</label>
+            <input className="form-input" value={form.customerNo} onChange={e => setField('customerNo', e.target.value)} placeholder="Optional" />
+          </div>
         </div>
 
+        {/* Bill To / Ship To */}
+        <div className="grid-2" style={{ marginBottom: 16 }}>
+          <div>
+            <div className="form-group" style={{ marginBottom: 8 }}>
+              <label className="form-label">Bill To Name *</label>
+              <input className="form-input" value={form.customer} onChange={e => setField('customer', e.target.value)} placeholder="Customer / Company" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Bill To Address</label>
+              <textarea className="form-textarea" style={{ minHeight: 72 }} value={form.billToAddress} onChange={e => setField('billToAddress', e.target.value)} placeholder="Street, City, Province, Country&#10;Phone" />
+            </div>
+          </div>
+          <div>
+            <div className="form-group" style={{ marginBottom: 8 }}>
+              <label className="form-label">Ship To Name</label>
+              <input className="form-input" value={form.shipToName} onChange={e => setField('shipToName', e.target.value)} placeholder="If different from Bill To" />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Ship To Address</label>
+              <textarea className="form-textarea" style={{ minHeight: 72 }} value={form.shipToAddress} onChange={e => setField('shipToAddress', e.target.value)} placeholder="Street, City, Province, Country&#10;Phone" />
+            </div>
+          </div>
+        </div>
+
+        {/* Order details row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Sales Person</label>
+            <input className="form-input" value={form.salesPerson} onChange={e => setField('salesPerson', e.target.value)} placeholder="Name" />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Terms</label>
+            <input className="form-input" value={form.terms} onChange={e => setField('terms', e.target.value)} placeholder="e.g. Net 30" />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Ship Via</label>
+            <input className="form-input" value={form.shipVia} onChange={e => setField('shipVia', e.target.value)} placeholder="Courier / Carrier" />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Shipping Cost (₱)</label>
+            <input className="form-input" type="number" min="0" step="0.01" value={form.shippingCost} onChange={e => setField('shippingCost', e.target.value)} />
+          </div>
+        </div>
+
+        {/* Line Items */}
         <div className="form-group">
           <label className="form-label">Line Items</label>
           <table className="line-items">
             <thead>
               <tr>
-                <th style={{ width: '45%' }}>Description</th>
-                <th style={{ width: '13%' }}>Qty</th>
-                <th style={{ width: '18%' }}>Rate (₱)</th>
-                <th style={{ width: '18%' }}>Amount</th>
+                <th style={{ width: '14%' }}>SKU Code</th>
+                <th style={{ width: '37%' }}>Description</th>
+                <th style={{ width: '11%' }}>Qty</th>
+                <th style={{ width: '16%' }}>Rate (₱)</th>
+                <th style={{ width: '16%' }}>Amount</th>
                 <th style={{ width: '6%' }}></th>
               </tr>
             </thead>
             <tbody>
               {form.lineItems.map(item => (
                 <tr key={item.id}>
+                  <td><input className="form-input" value={item.skuCode} onChange={e => updateItem(item.id, 'skuCode', e.target.value)} placeholder="SKU" /></td>
                   <td><input className="form-input" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Description" /></td>
                   <td><input className="form-input" type="number" value={item.qty} min="0" onChange={e => updateItem(item.id, 'qty', e.target.value)} /></td>
                   <td><input className="form-input" type="number" value={item.rate} min="0" step="0.01" onChange={e => updateItem(item.id, 'rate', e.target.value)} /></td>
@@ -182,15 +268,15 @@ export default function Invoices() {
           <table>
             <tbody>
               <tr><td className="text-muted">Subtotal:</td><td className="text-right">{fmt(subtotal)}</td></tr>
-              <tr><td className="text-muted">Tax (0%):</td><td className="text-right">₱0.00</td></tr>
-              <tr className="total-row"><td>Total:</td><td className="text-right">{fmt(subtotal)}</td></tr>
+              <tr><td className="text-muted">Shipping:</td><td className="text-right">{fmt(shipping)}</td></tr>
+              <tr className="total-row"><td>Total:</td><td className="text-right">{fmt(grandTotal)}</td></tr>
             </tbody>
           </table>
         </div>
 
         <div className="form-group mt-4">
-          <label className="form-label">Notes</label>
-          <textarea className="form-textarea" value={form.notes} onChange={e => setField('notes', e.target.value)} placeholder="Payment terms, notes..." />
+          <label className="form-label">Method of Payment / Notes</label>
+          <textarea className="form-textarea" value={form.notes} onChange={e => setField('notes', e.target.value)} placeholder="e.g. BANK REMITTANCE — shown on the invoice footer" />
         </div>
       </Modal>
 

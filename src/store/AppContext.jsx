@@ -81,8 +81,10 @@ export function AppProvider({ children }) {
   }, [data, persist])
 
   // ── Invoices ─────────────────────────────────────────────────
-  const nextInvoiceNum = useCallback(() =>
-    'INV-' + pad(data.invoices.length + 1), [data])
+  const nextInvoiceNum = useCallback(() => {
+    const max = data.invoices.reduce((m, i) => Math.max(m, parseInt(i.number?.replace(/\D/g, '')) || 0), 0)
+    return 'INV-' + pad(max + 1)
+  }, [data.invoices])
 
   const addInvoice = useCallback((inv) => {
     const newInv = { id: uid(), number: nextInvoiceNum(), status: 'draft', ...inv }
@@ -94,10 +96,13 @@ export function AppProvider({ children }) {
     next.invoices = data.invoices.map(i => {
       if (i.id !== id) return i
       const updated = { ...i, ...changes }
-      if (changes.status === 'paid' && i.status !== 'paid') {
+      const goingPaid   = changes.status === 'paid' && i.status !== 'paid'
+      const leavingPaid = changes.status && changes.status !== 'paid' && i.status === 'paid'
+      if (goingPaid || leavingPaid) {
+        const sign = goingPaid ? 1 : -1
         next.accounts = data.accounts.map(a => {
-          if (a.id === 'a1')  return { ...a, balance: a.balance + i.total }
-          if (a.id === 'a10') return { ...a, balance: a.balance + i.total }
+          if (a.id === 'a1'  || a.code === '1000') return { ...a, balance: a.balance + sign * i.total }
+          if (a.id === 'a10' || a.code === '4000') return { ...a, balance: a.balance + sign * i.total }
           return a
         })
       }
@@ -116,16 +121,18 @@ export function AppProvider({ children }) {
   }, [data, persist])
 
   // ── Expenses ─────────────────────────────────────────────────
-  const nextExpNum = useCallback(() =>
-    'EXP-' + pad(data.expenses.length + 1), [data])
+  const nextExpNum = useCallback(() => {
+    const max = data.expenses.reduce((m, e) => Math.max(m, parseInt(e.number?.replace(/\D/g, '')) || 0), 0)
+    return 'EXP-' + pad(max + 1)
+  }, [data.expenses])
 
   const addExpense = useCallback((exp) => {
     const newExp = { id: uid(), number: nextExpNum(), ...exp }
     const next = { ...data }
     next.expenses = [...data.expenses, newExp]
     next.accounts = data.accounts.map(a => {
-      if (a.id === exp.accountId) return { ...a, balance: a.balance + exp.amount }
-      if (a.id === 'a1')          return { ...a, balance: a.balance - exp.amount }
+      if (a.id === exp.accountId)              return { ...a, balance: a.balance + exp.amount }
+      if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance - exp.amount }
       return a
     })
     persist(next)
@@ -141,8 +148,8 @@ export function AppProvider({ children }) {
     const next = { ...data }
     next.expenses = data.expenses.filter(e => e.id !== id)
     next.accounts = data.accounts.map(a => {
-      if (a.id === exp.accountId) return { ...a, balance: a.balance - exp.amount }
-      if (a.id === 'a1')          return { ...a, balance: a.balance + exp.amount }
+      if (a.id === exp.accountId)              return { ...a, balance: a.balance - exp.amount }
+      if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance + exp.amount }
       return a
     })
     persist(next)
@@ -154,16 +161,16 @@ export function AppProvider({ children }) {
     if (mode === 'replace') {
       data.expenses.forEach(exp => {
         accounts = accounts.map(a => {
-          if (a.id === exp.accountId) return { ...a, balance: a.balance - exp.amount }
-          if (a.id === 'a1')          return { ...a, balance: a.balance + exp.amount }
+          if (a.id === exp.accountId)              return { ...a, balance: a.balance - exp.amount }
+          if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance + exp.amount }
           return a
         })
       })
     }
     records.forEach(exp => {
       accounts = accounts.map(a => {
-        if (a.id === exp.accountId) return { ...a, balance: a.balance + exp.amount }
-        if (a.id === 'a1')          return { ...a, balance: a.balance - exp.amount }
+        if (a.id === exp.accountId)              return { ...a, balance: a.balance + exp.amount }
+        if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance - exp.amount }
         return a
       })
     })
@@ -241,8 +248,10 @@ export function AppProvider({ children }) {
   }, [data, persist])
 
   // ── Petty Cash ───────────────────────────────────────────────
-  const nextPCNum = useCallback(() =>
-    'PC-' + pad((data.pettyCash?.length || 0) + 1), [data])
+  const nextPCNum = useCallback(() => {
+    const max = (data.pettyCash || []).reduce((m, p) => Math.max(m, parseInt(p.number?.replace(/\D/g, '')) || 0), 0)
+    return 'PC-' + pad(max + 1)
+  }, [data.pettyCash])
 
   const addPettyCash = useCallback((item) => {
     const newItem = { id: uid(), number: nextPCNum(), ...item }

@@ -124,6 +124,9 @@ export default function Invoices() {
                             <button className="btn btn-primary btn-xs" onClick={() => updateInvoice(inv.id, { status: 'paid' })}>Mark Paid</button>{' '}
                           </>
                         )}
+                        {inv.status === 'paid' && (
+                          <button className="btn btn-warning btn-xs" onClick={() => { if (confirm('Revert to draft? This will reverse the cash and revenue entries.')) updateInvoice(inv.id, { status: 'draft' }) }}>Revert</button>
+                        )}{' '}
                         <button className="btn btn-danger btn-xs" onClick={() => { if (confirm('Delete invoice?')) deleteInvoice(inv.id) }}>Delete</button>
                       </td>
                     </tr>

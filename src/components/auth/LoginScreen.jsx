@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../store/AuthContext'
+import logo from '../../assets/logo.svg'
 
 export default function LoginScreen() {
   const { login, loginError, setLoginError } = useAuth()
@@ -30,7 +31,7 @@ export default function LoginScreen() {
           background: 'linear-gradient(135deg, #111111, #333333)',
           padding: '32px 36px 28px', textAlign: 'center',
         }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
+          <img src={logo} alt="BTY Logo" style={{ width: 56, height: 56, marginBottom: 8, objectFit: 'contain' }} />
           <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: '-.3px' }}>
             <span style={{ color: '#ffffff' }}>●</span> BTY Accounting App
           </div>

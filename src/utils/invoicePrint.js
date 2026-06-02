@@ -212,13 +212,14 @@ ${printBar}
 
 export function printInvoice(invoice) {
   const html = generateInvoiceHTML(invoice, true)
-  const win  = window.open('', '_blank', 'width=920,height=780,scrollbars=yes,resizable=yes')
+  const blob = new Blob([html], { type: 'text/html' })
+  const url  = URL.createObjectURL(blob)
+  const win  = window.open(url, '_blank', 'width=920,height=780,scrollbars=yes,resizable=yes')
   if (!win) {
     alert('Please allow popups to open the print view.')
+    URL.revokeObjectURL(url)
     return
   }
-  win.document.open()
-  win.document.write(html)
-  win.document.close()
+  win.addEventListener('load', () => URL.revokeObjectURL(url), { once: true })
   win.focus()
 }

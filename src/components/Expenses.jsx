@@ -16,7 +16,7 @@ const PERIODS = [
 ]
 
 export default function Expenses() {
-  const { data, addExpense, updateExpenseMeta, deleteExpense, importExpenses, accName } = useApp()
+  const { data, addExpense, updateExpenseMeta, deleteExpense, importExpenses, updateTransactionMeta, accName } = useApp()
   const [modal, setModal]         = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm]           = useState(BLANK)
@@ -60,6 +60,7 @@ export default function Expenses() {
       if (acc?.type === 'Expense' && e.debit > 0) {
         journalExpenses.push({
           id: `${txn.id}-${e.accountId}`,
+          txnId: txn.id,
           date: txn.date,
           ref: txn.ref,
           vendor: txn.description,
@@ -196,7 +197,17 @@ export default function Expenses() {
                       <td className="text-muted">{e.ref}</td>
                       <td>{e.vendor}</td>
                       <td><span className="badge badge-yellow">{accName(e.accountId)}</span></td>
-                      <td className="text-muted">{e.department || '—'}</td>
+                      <td>
+                        <select
+                          className="form-select"
+                          style={{ fontSize: 12, padding: '3px 6px', minWidth: 160 }}
+                          value={e.department || ''}
+                          onChange={ev => updateTransactionMeta(e.txnId, { department: ev.target.value })}
+                        >
+                          <option value="">— None —</option>
+                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </td>
                       <td><span className="badge badge-blue">Journal Entry</span></td>
                       <td className="text-right amount-neg"><strong>{fmt(e.amount)}</strong></td>
                     </tr>

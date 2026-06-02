@@ -35,7 +35,7 @@ export default function Sidebar({ page, onNavigate }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-logo">
-        <img src={logo} alt="Spartan BTY Inc." style={{ width: '100%', maxWidth: 160, display: 'block', margin: '0 auto', filter: 'invert(1)' }} />
+        <img src={logo} alt="Spartan BTY Inc." style={{ width: '100%', maxWidth: 140, display: 'block', margin: '0 auto', filter: 'invert(1)' }} />
       </div>
 
       {NAV.map(({ section, items }) => (

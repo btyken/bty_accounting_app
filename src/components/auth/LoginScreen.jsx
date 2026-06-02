@@ -31,9 +31,9 @@ export default function LoginScreen() {
           background: 'linear-gradient(135deg, #111111, #333333)',
           padding: '32px 36px 28px', textAlign: 'center',
         }}>
-          <img src={logo} alt="BTY Logo" style={{ width: 56, height: 56, marginBottom: 8, objectFit: 'contain' }} />
+          <img src={logo} alt="BTY Logo" style={{ width: 120, height: 120, marginBottom: 12, objectFit: 'contain', filter: 'invert(1)' }} />
           <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: '-.3px' }}>
-            <span style={{ color: '#ffffff' }}>●</span> BTY Accounting App
+            BTY Accounting App
           </div>
           <div style={{ color: '#9ca3af', fontSize: 13, marginTop: 4 }}>Accounting Platform</div>
         </div>

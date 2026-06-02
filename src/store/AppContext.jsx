@@ -131,6 +131,10 @@ export function AppProvider({ children }) {
     persist(next)
   }, [data, persist, nextExpNum])
 
+  const updateExpenseMeta = useCallback((id, changes) => {
+    persist({ ...data, expenses: data.expenses.map(e => e.id === id ? { ...e, ...changes } : e) })
+  }, [data, persist])
+
   const deleteExpense = useCallback((id) => {
     const exp = data.expenses.find(e => e.id === id)
     if (!exp) return
@@ -201,6 +205,10 @@ export function AppProvider({ children }) {
     persist(next)
   }, [data, persist])
 
+  const updateTransactionMeta = useCallback((id, changes) => {
+    persist({ ...data, transactions: data.transactions.map(t => t.id === id ? { ...t, ...changes } : t) })
+  }, [data, persist])
+
   const importTransactions = useCallback((records, mode) => {
     const next = { ...data }
     let accounts = [...data.accounts]
@@ -255,8 +263,8 @@ export function AppProvider({ children }) {
       accName,
       addAccount, updateAccount, deleteAccount, importAccounts,
       addInvoice, updateInvoice, deleteInvoice, importInvoices, nextInvoiceNum,
-      addExpense, deleteExpense, importExpenses, nextExpNum,
-      addTransaction, deleteTransaction, importTransactions,
+      addExpense, updateExpenseMeta, deleteExpense, importExpenses, nextExpNum,
+      addTransaction, updateTransactionMeta, deleteTransaction, importTransactions,
       addPettyCash, deletePettyCash, nextPCNum,
     }}>
       {children}

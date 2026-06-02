@@ -16,7 +16,7 @@ const PERIODS = [
 ]
 
 export default function Expenses() {
-  const { data, addExpense, deleteExpense, importExpenses, accName } = useApp()
+  const { data, addExpense, updateExpenseMeta, deleteExpense, importExpenses, accName } = useApp()
   const [modal, setModal]         = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm]           = useState(BLANK)
@@ -149,7 +149,17 @@ export default function Expenses() {
                       <td className="text-muted">{e.number}</td>
                       <td><strong>{e.vendor}</strong></td>
                       <td><span className="badge badge-yellow">{accName(e.accountId)}</span></td>
-                      <td className="text-muted">{e.department || '—'}</td>
+                      <td>
+                        <select
+                          className="form-select"
+                          style={{ fontSize: 12, padding: '3px 6px', minWidth: 160 }}
+                          value={e.department || ''}
+                          onChange={ev => updateExpenseMeta(e.id, { department: ev.target.value })}
+                        >
+                          <option value="">— None —</option>
+                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </td>
                       <td className="text-muted">{e.method}</td>
                       <td className="text-muted">{e.description || '—'}</td>
                       <td className="text-right amount-neg"><strong>{fmt(e.amount)}</strong></td>

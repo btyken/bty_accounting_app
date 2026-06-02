@@ -8,7 +8,7 @@ import ImportModal from './import/ImportModal'
 const BLANK_ENTRY = () => ({ id: uid(), accountId: '', debit: '', credit: '' })
 
 export default function Transactions() {
-  const { data, addTransaction, deleteTransaction, importTransactions } = useApp()
+  const { data, addTransaction, updateTransactionMeta, deleteTransaction, importTransactions } = useApp()
   const [modal, setModal]     = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [form, setForm]       = useState({ date: today(), ref: '', description: '', department: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
@@ -121,7 +121,17 @@ export default function Transactions() {
                       <td className="text-muted">{t.date}</td>
                       <td><strong>{t.ref}</strong></td>
                       <td>{t.description}</td>
-                      <td className="text-muted">{t.department || '—'}</td>
+                      <td>
+                        <select
+                          className="form-select"
+                          style={{ fontSize: 12, padding: '3px 6px', minWidth: 160 }}
+                          value={t.department || ''}
+                          onChange={e => updateTransactionMeta(t.id, { department: e.target.value })}
+                        >
+                          <option value="">— None —</option>
+                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </td>
                       <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.debit||0),0))}</td>
                       <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.credit||0),0))}</td>
                       <td>

@@ -144,8 +144,8 @@ export default function Transactions() {
           <thead>
             <tr>
               <th style={{ width: '50%' }}>Account</th>
-              <th style={{ width: '20%' }}>Debit ($)</th>
-              <th style={{ width: '20%' }}>Credit ($)</th>
+              <th style={{ width: '20%' }}>Debit (₱)</th>
+              <th style={{ width: '20%' }}>Credit (₱)</th>
               <th style={{ width: '10%' }}></th>
             </tr>
           </thead>

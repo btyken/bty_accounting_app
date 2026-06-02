@@ -55,7 +55,7 @@ export default function UserManagement() {
   return (
     <div>
       {success && (
-        <div style={{ background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 8, padding: '10px 16px', marginBottom: 18, color: '#065f46', fontWeight: 500, fontSize: 13 }}>
+        <div style={{ background: '#f0f0f0', border: '1px solid #d1d5db', borderRadius: 8, padding: '10px 16px', marginBottom: 18, color: '#374151', fontWeight: 500, fontSize: 13 }}>
           ✅ {success}
         </div>
       )}

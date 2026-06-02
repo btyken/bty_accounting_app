@@ -41,7 +41,7 @@ export default function Expenses() {
         <div className="card"><div className="card-title">Total Expenses</div><div className="card-value red">{fmt(total)}</div></div>
         <div className="card"><div className="card-title">This Month</div><div className="card-value red">{fmt(monthTotal)}</div></div>
         <div className="card"><div className="card-title">Count</div><div className="card-value">{data.expenses.length}</div></div>
-        <div className="card"><div className="card-title">Avg Expense</div><div className="card-value">{data.expenses.length ? fmt(total / data.expenses.length) : '$0.00'}</div></div>
+        <div className="card"><div className="card-title">Avg Expense</div><div className="card-value">{data.expenses.length ? fmt(total / data.expenses.length) : '₱0.00'}</div></div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 16 }}>
@@ -108,7 +108,7 @@ export default function Expenses() {
             <input className="form-input" type="date" value={form.date} onChange={e => setField('date', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Amount ($)</label>
+            <label className="form-label">Amount (₱)</label>
             <input className="form-input" type="number" min="0" step="0.01" value={form.amount} onChange={e => setField('amount', e.target.value)} placeholder="0.00" />
           </div>
         </div>

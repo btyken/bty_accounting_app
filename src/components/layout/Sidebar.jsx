@@ -32,7 +32,7 @@ export default function Sidebar({ page, onNavigate }) {
   return (
     <nav className="sidebar">
       <div className="sidebar-logo">
-        <span className="dot">●</span> QuickBooks
+        <span className="dot">●</span> BTY Accounting App
       </div>
 
       {NAV.map(({ section, items }) => (
@@ -69,7 +69,7 @@ export default function Sidebar({ page, onNavigate }) {
       <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,.08)', padding: '14px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: '50%', background: '#2CA01C',
+            width: 32, height: 32, borderRadius: '50%', background: '#444444',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0,
           }}>

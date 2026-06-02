@@ -108,7 +108,7 @@ export default function Accounts() {
           </select>
         </div>
         <div className="form-group">
-          <label className="form-label">Opening Balance ($)</label>
+          <label className="form-label">Opening Balance (₱)</label>
           <input className="form-input" type="number" step="0.01" value={form.balance} onChange={e => setForm(f => ({ ...f, balance: e.target.value }))} />
         </div>
       </Modal>

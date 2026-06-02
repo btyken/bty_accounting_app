@@ -18,7 +18,7 @@ export default function LoginScreen() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1a2e1a 0%, #0f1f0f 100%)',
+      background: 'linear-gradient(135deg, #111111 0%, #000000 100%)',
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     }}>
       <div style={{
@@ -27,14 +27,14 @@ export default function LoginScreen() {
       }}>
         {/* Header */}
         <div style={{
-          background: 'linear-gradient(135deg, #1a2e1a, #2e4a2e)',
+          background: 'linear-gradient(135deg, #111111, #333333)',
           padding: '32px 36px 28px', textAlign: 'center',
         }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>📊</div>
           <div style={{ color: '#fff', fontSize: 22, fontWeight: 700, letterSpacing: '-.3px' }}>
-            <span style={{ color: '#4ade80' }}>●</span> QuickBooks
+            <span style={{ color: '#ffffff' }}>●</span> BTY Accounting App
           </div>
-          <div style={{ color: '#9dc49d', fontSize: 13, marginTop: 4 }}>Accounting Platform</div>
+          <div style={{ color: '#9ca3af', fontSize: 13, marginTop: 4 }}>Accounting Platform</div>
         </div>
 
         {/* Form */}
@@ -68,7 +68,7 @@ export default function LoginScreen() {
                 borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box',
                 transition: 'border-color .15s',
               }}
-              onFocus={e => e.target.style.borderColor = '#2CA01C'}
+              onFocus={e => e.target.style.borderColor = '#111111'}
               onBlur={e => e.target.style.borderColor = '#e5e7eb'}
             />
           </div>
@@ -89,7 +89,7 @@ export default function LoginScreen() {
                   borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   transition: 'border-color .15s',
                 }}
-                onFocus={e => e.target.style.borderColor = '#2CA01C'}
+                onFocus={e => e.target.style.borderColor = '#111111'}
                 onBlur={e => e.target.style.borderColor = '#e5e7eb'}
               />
               <button
@@ -109,7 +109,7 @@ export default function LoginScreen() {
             type="submit"
             disabled={loading}
             style={{
-              width: '100%', padding: '11px', background: loading ? '#6abf5e' : '#2CA01C',
+              width: '100%', padding: '11px', background: loading ? '#555555' : '#111111',
               color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer', transition: 'background .15s',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -118,8 +118,8 @@ export default function LoginScreen() {
             {loading ? '⏳ Signing in…' : '🔓 Sign In'}
           </button>
 
-          <div style={{ marginTop: 20, padding: '12px 14px', background: '#f0fdf4', borderRadius: 8, fontSize: 12, color: '#065f46' }}>
-            <strong>Default credentials:</strong> username <code style={{ background: '#d1fae5', padding: '1px 5px', borderRadius: 4 }}>admin</code> / password <code style={{ background: '#d1fae5', padding: '1px 5px', borderRadius: 4 }}>admin123</code>
+          <div style={{ marginTop: 20, padding: '12px 14px', background: '#f3f4f6', borderRadius: 8, fontSize: 12, color: '#374151' }}>
+            <strong>Default credentials:</strong> username <code style={{ background: '#e5e7eb', padding: '1px 5px', borderRadius: 4 }}>admin</code> / password <code style={{ background: '#e5e7eb', padding: '1px 5px', borderRadius: 4 }}>admin123</code>
           </div>
         </form>
       </div>

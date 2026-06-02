@@ -24,7 +24,7 @@ function AppInner() {
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#1a2e1a', color: '#fff', fontSize: 16, gap: 12,
+        background: '#111111', color: '#fff', fontSize: 16, gap: 12,
       }}>
         <span style={{ fontSize: 28 }}>📊</span> Loading…
       </div>

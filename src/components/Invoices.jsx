@@ -158,7 +158,7 @@ export default function Invoices() {
               <tr>
                 <th style={{ width: '45%' }}>Description</th>
                 <th style={{ width: '13%' }}>Qty</th>
-                <th style={{ width: '18%' }}>Rate ($)</th>
+                <th style={{ width: '18%' }}>Rate (₱)</th>
                 <th style={{ width: '18%' }}>Amount</th>
                 <th style={{ width: '6%' }}></th>
               </tr>
@@ -182,7 +182,7 @@ export default function Invoices() {
           <table>
             <tbody>
               <tr><td className="text-muted">Subtotal:</td><td className="text-right">{fmt(subtotal)}</td></tr>
-              <tr><td className="text-muted">Tax (0%):</td><td className="text-right">$0.00</td></tr>
+              <tr><td className="text-muted">Tax (0%):</td><td className="text-right">₱0.00</td></tr>
               <tr className="total-row"><td>Total:</td><td className="text-right">{fmt(subtotal)}</td></tr>
             </tbody>
           </table>

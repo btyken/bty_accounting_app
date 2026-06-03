@@ -56,26 +56,21 @@ export default function ExpenseReport() {
   // Collect all expenses (direct + from journal entries)
   const directExpenses = data.expenses.filter(e => inRange(e.date))
 
-  const journalExpenses = []
-  ;(data.transactions || []).forEach(txn => {
-    if (!inRange(txn.date)) return
-    txn.entries.forEach(e => {
-      const acc = data.accounts.find(a => a.id === e.accountId)
-      if (acc?.type === 'Expense' && e.debit > 0) {
-        journalExpenses.push({
-          id: `${txn.id}-${e.accountId}`,
-          date: txn.date,
-          ref: txn.ref,
-          vendor: txn.description,
-          accountId: e.accountId,
-          department: txn.department || '',
-          method: 'Journal Entry',
-          amount: e.debit,
-          isJournal: true,
-        })
-      }
-    })
-  })
+  const journalExpenses = (data.transactions || [])
+    .filter(txn => inRange(txn.date))
+    .map(txn => ({
+      id: txn.id,
+      date: txn.date,
+      ref: txn.ref,
+      vendor: txn.description,
+      accounts: txn.entries
+        .map(e => data.accounts.find(a => a.id === e.accountId)?.name)
+        .filter(Boolean)
+        .join(', '),
+      department: txn.department || '',
+      amount: txn.entries.reduce((s, e) => s + (e.debit || 0), 0),
+      isJournal: true,
+    }))
 
   const allExpenses = [...directExpenses, ...journalExpenses]
   const grandTotal  = allExpenses.reduce((s, e) => s + e.amount, 0)
@@ -233,7 +228,12 @@ export default function ExpenseReport() {
                         <td className="text-muted">{e.date}</td>
                         <td className="text-muted">{e.number || e.ref || '—'}</td>
                         <td><strong>{e.vendor}</strong></td>
-                        <td><span className="badge badge-yellow">{accName(e.accountId)}</span></td>
+                        <td>
+                          {e.isJournal
+                            ? <span className="text-muted text-sm">{e.accounts || '—'}</span>
+                            : <span className="badge badge-yellow">{accName(e.accountId)}</span>
+                          }
+                        </td>
                         <td className="text-muted">{e.department || '—'}</td>
                         <td>
                           {e.isJournal

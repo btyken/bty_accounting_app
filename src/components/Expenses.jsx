@@ -27,6 +27,7 @@ export default function Expenses() {
   const [err, setErr]             = useState('')
   const [period, setPeriod]       = useState('all')
   const [deptFilter, setDeptFilter] = useState('')
+  const [view, setView]           = useState('all')  // 'all' | 'direct' | 'journal'
 
   const expenseAccounts = data.accounts.filter(a => a.type === 'Expense')
 
@@ -55,36 +56,39 @@ export default function Expenses() {
   // Direct expenses filtered by period + department
   const filteredExpenses = data.expenses.filter(e => inRange(e.date) && matchesDept(e.department))
 
-  // Journal-entry-based expenses: any transaction entry that debits an expense account
-  const journalExpenses = []
-  ;(data.transactions || []).forEach(txn => {
-    if (!inRange(txn.date) || !matchesDept(txn.department)) return
-    txn.entries.forEach(e => {
-      const acc = data.accounts.find(a => a.id === e.accountId)
-      if (acc?.type === 'Expense' && e.debit > 0) {
-        journalExpenses.push({
-          id: `${txn.id}-${e.accountId}`,
-          txnId: txn.id,
-          date: txn.date,
-          ref: txn.ref,
-          vendor: txn.description,
-          accountId: e.accountId,
-          department: txn.department || '',
-          method: 'Journal Entry',
-          amount: e.debit,
-          isJournal: true,
-        })
-      }
-    })
-  })
+  // ALL journal entries as rows — one per transaction, regardless of account type
+  const journalRows = (data.transactions || [])
+    .filter(txn => inRange(txn.date) && matchesDept(txn.department))
+    .map(txn => ({
+      id: txn.id,
+      txnId: txn.id,
+      date: txn.date,
+      ref: txn.ref,
+      vendor: txn.description,
+      department: txn.department || '',
+      amount: txn.entries.reduce((s, e) => s + (e.debit || 0), 0),
+      accounts: txn.entries
+        .map(e => data.accounts.find(a => a.id === e.accountId)?.name)
+        .filter(Boolean)
+        .join(', '),
+      isJournal: true,
+    }))
 
-  const allExpenses = [...filteredExpenses, ...journalExpenses]
-  const total       = allExpenses.reduce((s, e) => s + e.amount, 0)
-  const count       = allExpenses.length
-  const avg         = count ? total / count : 0
+  const viewData =
+    view === 'direct'  ? filteredExpenses :
+    view === 'journal' ? journalRows :
+    [...filteredExpenses, ...journalRows].sort((a, b) => b.date.localeCompare(a.date))
 
-  const thisMonth   = today().slice(0, 7)
-  const monthTotal  = data.expenses.filter(e => e.date.startsWith(thisMonth)).reduce((s, e) => s + e.amount, 0)
+  const total = viewData.reduce((s, e) => s + e.amount, 0)
+  const count = viewData.length
+  const avg   = count ? total / count : 0
+
+  const thisMonth  = today().slice(0, 7)
+  const monthTotal = [
+    ...data.expenses.filter(e => e.date.startsWith(thisMonth)),
+    ...(data.transactions || []).filter(t => t.date.startsWith(thisMonth))
+      .map(t => ({ amount: t.entries.reduce((s, e) => s + (e.debit || 0), 0) })),
+  ].reduce((s, e) => s + e.amount, 0)
 
   return (
     <div>
@@ -129,14 +133,27 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* All Expenses (direct + journal entries) */}
-      <div className="card">
-        {allExpenses.length === 0
+      {/* Source tabs */}
+      <div className="tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
+        {[
+          { id: 'all',     label: `All (${filteredExpenses.length + journalRows.length})` },
+          { id: 'direct',  label: `Direct Expenses (${filteredExpenses.length})` },
+          { id: 'journal', label: `Journal Entries (${journalRows.length})` },
+        ].map(t => (
+          <div key={t.id} className={`tab${view === t.id ? ' active' : ''}`} onClick={() => setView(t.id)}>
+            {t.label}
+          </div>
+        ))}
+      </div>
+
+      {/* Expenses table */}
+      <div className="card" style={{ borderTopLeftRadius: 0 }}>
+        {viewData.length === 0
           ? (
             <div className="empty">
               <div className="empty-icon">💳</div>
-              <p>No expenses recorded for this period.</p>
-              <button className="btn btn-primary" onClick={openNew}>+ Record Expense</button>
+              <p>{view === 'journal' ? 'No journal entries for this period.' : 'No expenses recorded for this period.'}</p>
+              {view !== 'journal' && <button className="btn btn-primary" onClick={openNew}>+ Record Expense</button>}
             </div>
           )
           : (
@@ -144,18 +161,25 @@ export default function Expenses() {
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th><th>Ref #</th><th>Vendor / Description</th><th>Category</th>
-                    <th>Department</th><th>Source</th><th>Method</th>
+                    <th>Date</th><th>Ref #</th><th>Vendor / Description</th>
+                    <th>{view === 'journal' ? 'Accounts' : 'Category'}</th>
+                    <th>Department</th><th>Source</th>
+                    {view !== 'journal' && <th>Method</th>}
                     <th className="text-right">Amount</th><th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...allExpenses].sort((a, b) => b.date.localeCompare(a.date)).map(e => (
+                  {viewData.map(e => (
                     <tr key={e.id}>
                       <td className="text-muted">{e.date}</td>
                       <td className="text-muted">{e.number || e.ref || '—'}</td>
                       <td><strong>{e.vendor}</strong></td>
-                      <td><span className="badge badge-yellow">{accName(e.accountId)}</span></td>
+                      <td>
+                        {e.isJournal
+                          ? <span className="text-muted text-sm">{e.accounts || '—'}</span>
+                          : <span className="badge badge-yellow">{accName(e.accountId)}</span>
+                        }
+                      </td>
                       <td>
                         {e.isJournal ? (
                           <select
@@ -185,7 +209,7 @@ export default function Expenses() {
                           : <span className="badge badge-gray">Direct</span>
                         }
                       </td>
-                      <td className="text-muted">{e.isJournal ? '—' : e.method}</td>
+                      {view !== 'journal' && <td className="text-muted">{e.isJournal ? '—' : e.method}</td>}
                       <td className="text-right amount-neg"><strong>{fmt(e.amount)}</strong></td>
                       <td>
                         {!e.isJournal && (

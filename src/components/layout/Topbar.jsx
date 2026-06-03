@@ -11,6 +11,7 @@ const TITLES = {
   expreport:    'Expense Report',
   pettycash:    'Petty Cash Liquidation',
   gl:           'General Ledger',
+  trialbalance: 'Trial Balance',
   users:        'User Management',
 }
 

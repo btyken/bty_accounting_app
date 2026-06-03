@@ -25,7 +25,8 @@ const NAV = [
       { id: 'pl',        icon: '📈', label: 'Profit & Loss' },
       { id: 'balance',   icon: '⚖️', label: 'Balance Sheet' },
       { id: 'expreport', icon: '📋', label: 'Expense Report' },
-      { id: 'gl',        icon: '📒', label: 'General Ledger' },
+      { id: 'gl',           icon: '📒', label: 'General Ledger' },
+      { id: 'trialbalance', icon: '📑', label: 'Trial Balance' },
     ],
   },
 ]

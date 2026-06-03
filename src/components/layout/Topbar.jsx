@@ -10,6 +10,7 @@ const TITLES = {
   balance:      'Balance Sheet',
   expreport:    'Expense Report',
   pettycash:    'Petty Cash Liquidation',
+  gl:           'General Ledger',
   users:        'User Management',
 }
 

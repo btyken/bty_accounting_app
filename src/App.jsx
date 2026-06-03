@@ -13,9 +13,10 @@ import Expenses from './components/Expenses'
 import ProfitLoss from './components/reports/ProfitLoss'
 import BalanceSheet from './components/reports/BalanceSheet'
 import ExpenseReport from './components/reports/ExpenseReport'
+import GeneralLedger from './components/reports/GeneralLedger'
 import PettyCash from './components/PettyCash'
 
-const PRINT_PAGES = ['pl', 'balance', 'expreport']
+const PRINT_PAGES = ['pl', 'balance', 'expreport', 'gl']
 
 function AppInner() {
   const { currentUser, users } = useAuth()
@@ -50,6 +51,7 @@ function AppInner() {
       case 'pl':           return <ProfitLoss />
       case 'balance':      return <BalanceSheet />
       case 'expreport':    return <ExpenseReport />
+      case 'gl':           return <GeneralLedger />
       case 'pettycash':    return <PettyCash />
       case 'users':        return <UserManagement />
       default:             return <Dashboard onNavigate={setPage} />

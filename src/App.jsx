@@ -15,9 +15,10 @@ import BalanceSheet from './components/reports/BalanceSheet'
 import ExpenseReport from './components/reports/ExpenseReport'
 import GeneralLedger from './components/reports/GeneralLedger'
 import TrialBalance from './components/reports/TrialBalance'
+import FinancialStatements from './components/reports/FinancialStatements'
 import PettyCash from './components/PettyCash'
 
-const PRINT_PAGES = ['pl', 'balance', 'expreport', 'gl', 'trialbalance']
+const PRINT_PAGES = ['pl', 'balance', 'expreport', 'gl', 'trialbalance', 'financial']
 
 function AppInner() {
   const { currentUser, users } = useAuth()
@@ -52,6 +53,7 @@ function AppInner() {
       case 'pl':           return <ProfitLoss />
       case 'balance':      return <BalanceSheet />
       case 'expreport':    return <ExpenseReport />
+      case 'financial':    return <FinancialStatements />
       case 'gl':           return <GeneralLedger />
       case 'trialbalance': return <TrialBalance />
       case 'pettycash':    return <PettyCash />

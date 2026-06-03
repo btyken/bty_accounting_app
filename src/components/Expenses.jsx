@@ -129,10 +129,9 @@ export default function Expenses() {
         </div>
       </div>
 
-      {/* Direct Expenses */}
-      <div className="card" style={{ marginBottom: 18 }}>
-        <div className="section-header">Direct Expenses</div>
-        {filteredExpenses.length === 0
+      {/* All Expenses (direct + journal entries) */}
+      <div className="card">
+        {allExpenses.length === 0
           ? (
             <div className="empty">
               <div className="empty-icon">💳</div>
@@ -145,78 +144,54 @@ export default function Expenses() {
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th><th>Ref #</th><th>Vendor</th><th>Category</th>
-                    <th>Department</th><th>Method</th><th>Description</th>
+                    <th>Date</th><th>Ref #</th><th>Vendor / Description</th><th>Category</th>
+                    <th>Department</th><th>Source</th><th>Method</th>
                     <th className="text-right">Amount</th><th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[...filteredExpenses].reverse().map(e => (
+                  {[...allExpenses].sort((a, b) => b.date.localeCompare(a.date)).map(e => (
                     <tr key={e.id}>
                       <td className="text-muted">{e.date}</td>
-                      <td className="text-muted">{e.number}</td>
+                      <td className="text-muted">{e.number || e.ref || '—'}</td>
                       <td><strong>{e.vendor}</strong></td>
                       <td><span className="badge badge-yellow">{accName(e.accountId)}</span></td>
                       <td>
-                        <select
-                          className="form-select"
-                          style={{ fontSize: 12, padding: '3px 6px', minWidth: 160 }}
-                          value={e.department || ''}
-                          onChange={ev => updateExpenseMeta(e.id, { department: ev.target.value })}
-                        >
-                          <option value="">— None —</option>
-                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
+                        {e.isJournal ? (
+                          <select
+                            className="form-select"
+                            style={{ fontSize: 12, padding: '3px 6px', minWidth: 160 }}
+                            value={e.department || ''}
+                            onChange={ev => updateTransactionMeta(e.txnId, { department: ev.target.value })}
+                          >
+                            <option value="">— None —</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        ) : (
+                          <select
+                            className="form-select"
+                            style={{ fontSize: 12, padding: '3px 6px', minWidth: 160 }}
+                            value={e.department || ''}
+                            onChange={ev => updateExpenseMeta(e.id, { department: ev.target.value })}
+                          >
+                            <option value="">— None —</option>
+                            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        )}
                       </td>
-                      <td className="text-muted">{e.method}</td>
-                      <td className="text-muted">{e.description || '—'}</td>
+                      <td>
+                        {e.isJournal
+                          ? <span className="badge badge-blue">Journal Entry</span>
+                          : <span className="badge badge-gray">Direct</span>
+                        }
+                      </td>
+                      <td className="text-muted">{e.isJournal ? '—' : e.method}</td>
                       <td className="text-right amount-neg"><strong>{fmt(e.amount)}</strong></td>
                       <td>
-                        <button className="btn btn-danger btn-xs" onClick={() => { if (confirm('Delete expense?')) deleteExpense(e.id) }}>Delete</button>
+                        {!e.isJournal && (
+                          <button className="btn btn-danger btn-xs" onClick={() => { if (confirm('Delete expense?')) deleteExpense(e.id) }}>Delete</button>
+                        )}
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        }
-      </div>
-
-      {/* Journal Entry Expenses */}
-      <div className="card">
-        <div className="section-header">From Journal Entries</div>
-        {journalExpenses.length === 0
-          ? <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 0' }}>No journal entries with expense accounts in this period.</p>
-          : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Date</th><th>Ref #</th><th>Description</th><th>Account</th>
-                    <th>Department</th><th>Source</th><th className="text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {journalExpenses.map(e => (
-                    <tr key={e.id}>
-                      <td className="text-muted">{e.date}</td>
-                      <td className="text-muted">{e.ref}</td>
-                      <td>{e.vendor}</td>
-                      <td><span className="badge badge-yellow">{accName(e.accountId)}</span></td>
-                      <td>
-                        <select
-                          className="form-select"
-                          style={{ fontSize: 12, padding: '3px 6px', minWidth: 160 }}
-                          value={e.department || ''}
-                          onChange={ev => updateTransactionMeta(e.txnId, { department: ev.target.value })}
-                        >
-                          <option value="">— None —</option>
-                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                      </td>
-                      <td><span className="badge badge-blue">Journal Entry</span></td>
-                      <td className="text-right amount-neg"><strong>{fmt(e.amount)}</strong></td>
                     </tr>
                   ))}
                 </tbody>

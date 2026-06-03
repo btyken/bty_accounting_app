@@ -51,13 +51,15 @@ export default function BalanceSheet() {
   const totalLiabEquity  = totalLiabilities + totalEquity
   const balanced         = Math.abs(totalAssets - totalLiabEquity) < 0.01
 
-  const assetSlices = assets
-    .filter(a => a.balance > 0)
-    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: totalAssets ? a.balance / totalAssets * 100 : 0 }))
+  const assetPositive = assets.filter(a => a.balance > 0)
+  const assetPositiveTotal = assetPositive.reduce((s, a) => s + a.balance, 0)
+  const assetSlices = assetPositive
+    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: assetPositiveTotal ? a.balance / assetPositiveTotal * 100 : 0 }))
 
-  const liabSlices = liabilities
-    .filter(a => a.balance > 0)
-    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: totalLiabilities ? a.balance / totalLiabilities * 100 : 0 }))
+  const liabPositive = liabilities.filter(a => a.balance > 0)
+  const liabPositiveTotal = liabPositive.reduce((s, a) => s + a.balance, 0)
+  const liabSlices = liabPositive
+    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: liabPositiveTotal ? a.balance / liabPositiveTotal * 100 : 0 }))
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>

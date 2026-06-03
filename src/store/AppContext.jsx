@@ -262,6 +262,62 @@ export function AppProvider({ children }) {
     persist({ ...data, pettyCash: (data.pettyCash || []).filter(p => p.id !== id) })
   }, [data, persist])
 
+  // ── Clear All (admin only) ───────────────────────────────────
+  const clearAccounts = useCallback(() => {
+    if (!data) return
+    persist({ ...data, accounts: [] })
+  }, [data, persist])
+
+  const clearInvoices = useCallback(() => {
+    if (!data) return
+    const paidInvoices = data.invoices.filter(i => i.status === 'paid')
+    const accounts = data.accounts.map(a => {
+      let balance = a.balance
+      paidInvoices.forEach(inv => {
+        if (a.id === 'a1')  balance -= inv.total
+        if (a.id === 'a10') balance -= inv.total
+      })
+      return { ...a, balance }
+    })
+    persist({ ...data, accounts, invoices: [] })
+  }, [data, persist])
+
+  const clearExpenses = useCallback(() => {
+    if (!data) return
+    const accounts = data.accounts.map(a => {
+      let balance = a.balance
+      data.expenses.forEach(exp => {
+        if (a.id === exp.accountId) balance -= exp.amount
+        if (a.id === 'a1')          balance += exp.amount
+      })
+      return { ...a, balance }
+    })
+    persist({ ...data, accounts, expenses: [] })
+  }, [data, persist])
+
+  const clearTransactions = useCallback(() => {
+    if (!data) return
+    const accounts = data.accounts.map(a => {
+      let balance = a.balance
+      data.transactions.forEach(txn => {
+        txn.entries.forEach(e => {
+          if (e.accountId === a.id) {
+            const delta = (a.type === 'Asset' || a.type === 'Expense')
+              ? e.debit - e.credit : e.credit - e.debit
+            balance -= delta
+          }
+        })
+      })
+      return { ...a, balance }
+    })
+    persist({ ...data, accounts, transactions: [] })
+  }, [data, persist])
+
+  const clearPettyCash = useCallback(() => {
+    if (!data) return
+    persist({ ...data, pettyCash: [] })
+  }, [data, persist])
+
   const accName = useCallback((id) =>
     (data?.accounts.find(a => a.id === id) || {}).name || '—', [data])
 
@@ -275,6 +331,7 @@ export function AppProvider({ children }) {
       addExpense, updateExpenseMeta, deleteExpense, importExpenses, nextExpNum,
       addTransaction, updateTransactionMeta, deleteTransaction, importTransactions,
       addPettyCash, deletePettyCash, nextPCNum,
+      clearAccounts, clearInvoices, clearExpenses, clearTransactions, clearPettyCash,
     }}>
       {children}
     </AppContext.Provider>

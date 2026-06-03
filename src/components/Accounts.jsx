@@ -1,19 +1,23 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { fmt, typeBadge, uid } from '../utils/format'
 import { ACCOUNT_TYPES } from '../data/defaults'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
+import DeleteAllModal from './ui/DeleteAllModal'
 
 const BLANK = { code: '', name: '', type: 'Asset', balance: 0 }
 
 export default function Accounts() {
-  const { data, addAccount, updateAccount, deleteAccount, importAccounts } = useApp()
-  const [modal, setModal]   = useState(false)
+  const { data, addAccount, updateAccount, deleteAccount, importAccounts, clearAccounts } = useApp()
+  const { isAdmin } = useAuth()
+  const [modal, setModal]         = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  const [editing, setEditing] = useState(null) // account id or null
-  const [form, setForm]     = useState(BLANK)
-  const [err, setErr]       = useState('')
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false)
+  const [editing, setEditing]     = useState(null)
+  const [form, setForm]           = useState(BLANK)
+  const [err, setErr]             = useState('')
 
   const openNew = () => { setEditing(null); setForm(BLANK); setErr(''); setModal(true) }
   const openEdit = (acc) => { setEditing(acc.id); setForm({ code: acc.code, name: acc.name, type: acc.type, balance: acc.balance }); setErr(''); setModal(true) }
@@ -39,6 +43,9 @@ export default function Accounts() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 20 }}>
+        {isAdmin && (
+          <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+        )}
         <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
         <button className="btn btn-primary" onClick={openNew}>+ New Account</button>
       </div>
@@ -119,6 +126,14 @@ export default function Accounts() {
         onClose={() => setImportOpen(false)}
         type="accounts"
         onImport={importAccounts}
+      />
+
+      {/* Delete All Modal */}
+      <DeleteAllModal
+        open={deleteAllOpen}
+        onClose={() => setDeleteAllOpen(false)}
+        onConfirm={clearAccounts}
+        label="Chart of Accounts"
       />
     </div>
   )

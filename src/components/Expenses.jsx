@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { fmt, today, getDateRange } from '../utils/format'
 import { PAYMENT_METHODS, DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
+import DeleteAllModal from './ui/DeleteAllModal'
 
 const BLANK = { date: today(), amount: '', vendor: '', accountId: '', method: 'Cash', description: '', department: '' }
 
@@ -16,9 +18,11 @@ const PERIODS = [
 ]
 
 export default function Expenses() {
-  const { data, addExpense, updateExpenseMeta, deleteExpense, importExpenses, updateTransactionMeta, accName } = useApp()
+  const { data, addExpense, updateExpenseMeta, deleteExpense, importExpenses, updateTransactionMeta, accName, clearExpenses } = useApp()
+  const { isAdmin } = useAuth()
   const [modal, setModal]         = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [form, setForm]           = useState(BLANK)
   const [err, setErr]             = useState('')
   const [period, setPeriod]       = useState('all')
@@ -117,6 +121,9 @@ export default function Expenses() {
           </select>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
+          {isAdmin && (
+            <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+          )}
           <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
           <button className="btn btn-primary" onClick={openNew}>+ Record Expense</button>
         </div>
@@ -281,6 +288,14 @@ export default function Expenses() {
         onClose={() => setImportOpen(false)}
         type="expenses"
         onImport={importExpenses}
+      />
+
+      {/* Delete All Modal */}
+      <DeleteAllModal
+        open={deleteAllOpen}
+        onClose={() => setDeleteAllOpen(false)}
+        onConfirm={clearExpenses}
+        label="Expenses"
       />
     </div>
   )

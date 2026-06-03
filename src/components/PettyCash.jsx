@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { fmt, today, getDateRange, getLast6Months } from '../utils/format'
 import { DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import PieChart from './ui/PieChart'
+import DeleteAllModal from './ui/DeleteAllModal'
 
 const BLANK = { date: today(), payee: '', purpose: '', amount: '', department: '', receiptNo: '' }
 
@@ -24,13 +26,15 @@ const DEPT_COLORS = [
 ]
 
 export default function PettyCash() {
-  const { data, addPettyCash, deletePettyCash } = useApp()
-  const [modal, setModal]   = useState(false)
-  const [form, setForm]     = useState(BLANK)
-  const [err, setErr]       = useState('')
-  const [period, setPeriod] = useState('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo,   setDateTo]   = useState('')
+  const { data, addPettyCash, deletePettyCash, clearPettyCash } = useApp()
+  const { isAdmin } = useAuth()
+  const [modal, setModal]         = useState(false)
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false)
+  const [form, setForm]           = useState(BLANK)
+  const [err, setErr]             = useState('')
+  const [period, setPeriod]       = useState('all')
+  const [dateFrom, setDateFrom]   = useState('')
+  const [dateTo,   setDateTo]     = useState('')
 
   const pettyCash = data.pettyCash || []
 
@@ -117,7 +121,12 @@ export default function PettyCash() {
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" onClick={openNew}>+ Add Petty Cash Entry</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {isAdmin && (
+              <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+            )}
+            <button className="btn btn-primary" onClick={openNew}>+ Add Petty Cash Entry</button>
+          </div>
         </div>
 
         {/* Custom date inputs */}
@@ -354,6 +363,14 @@ export default function PettyCash() {
           </select>
         </div>
       </Modal>
+
+      {/* Delete All Modal */}
+      <DeleteAllModal
+        open={deleteAllOpen}
+        onClose={() => setDeleteAllOpen(false)}
+        onConfirm={clearPettyCash}
+        label="Petty Cash Entries"
+      />
     </div>
   )
 }

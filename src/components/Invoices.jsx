@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { fmt, today, uid, statusBadge } from '../utils/format'
 import { generateInvoiceHTML, printInvoice } from '../utils/invoicePrint'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
+import DeleteAllModal from './ui/DeleteAllModal'
 
 const BLANK_ITEM = () => ({ id: uid(), skuCode: '', description: '', qty: 1, rate: 0, amount: 0 })
 
@@ -31,10 +33,12 @@ function newForm(nextNum) {
 const TABS = ['all', 'draft', 'sent', 'paid', 'overdue']
 
 export default function Invoices() {
-  const { data, addInvoice, updateInvoice, deleteInvoice, importInvoices, nextInvoiceNum } = useApp()
+  const { data, addInvoice, updateInvoice, deleteInvoice, importInvoices, nextInvoiceNum, clearInvoices } = useApp()
+  const { isAdmin } = useAuth()
   const [tab, setTab]           = useState('all')
   const [modal, setModal]       = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [form, setForm]         = useState(() => newForm('INV-0001'))
   const [err, setErr]           = useState('')
   const [viewInv, setViewInv]   = useState(null)
@@ -84,6 +88,9 @@ export default function Invoices() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 16 }}>
+        {isAdmin && (
+          <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+        )}
         <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
         <button className="btn btn-primary" onClick={openNew}>+ New Invoice</button>
       </div>
@@ -289,6 +296,14 @@ export default function Invoices() {
         onClose={() => setImportOpen(false)}
         type="invoices"
         onImport={importInvoices}
+      />
+
+      {/* Delete All Modal */}
+      <DeleteAllModal
+        open={deleteAllOpen}
+        onClose={() => setDeleteAllOpen(false)}
+        onConfirm={clearInvoices}
+        label="Invoices"
       />
     </div>
   )

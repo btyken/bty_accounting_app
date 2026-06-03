@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
+import { useAuth } from '../store/AuthContext'
 import { fmt, today, uid, pad, getDateRange } from '../utils/format'
 import { DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
+import DeleteAllModal from './ui/DeleteAllModal'
 
 const BLANK_ENTRY = () => ({ id: uid(), accountId: '', debit: '', credit: '' })
 
@@ -17,9 +19,11 @@ const PERIODS = [
 ]
 
 export default function Transactions() {
-  const { data, addTransaction, updateTransactionMeta, deleteTransaction, importTransactions } = useApp()
+  const { data, addTransaction, updateTransactionMeta, deleteTransaction, importTransactions, clearTransactions } = useApp()
+  const { isAdmin } = useAuth()
   const [modal, setModal]     = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [form, setForm]       = useState({ date: today(), ref: '', description: '', department: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
   const [err, setErr]         = useState('')
   const [deptFilter, setDeptFilter] = useState('')
@@ -120,6 +124,9 @@ export default function Transactions() {
               <option value="">All Departments</option>
               {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
             </select>
+            {isAdmin && (
+              <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+            )}
             <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
             <button className="btn btn-primary" onClick={openNew}>+ Journal Entry</button>
           </div>
@@ -288,6 +295,14 @@ export default function Transactions() {
         onClose={() => setImportOpen(false)}
         type="transactions"
         onImport={importTransactions}
+      />
+
+      {/* Delete All Modal */}
+      <DeleteAllModal
+        open={deleteAllOpen}
+        onClose={() => setDeleteAllOpen(false)}
+        onConfirm={clearTransactions}
+        label="Transactions"
       />
     </div>
   )

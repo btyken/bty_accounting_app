@@ -3,6 +3,7 @@ import { useApp } from '../../store/AppContext'
 import { fmt, today } from '../../utils/format'
 import { DEPARTMENTS } from '../../data/defaults'
 import PieChart from '../ui/PieChart'
+import { ClipboardList } from 'lucide-react'
 
 const DEPT_COLORS = [
   '#111111', '#1e40af', '#dc2626', '#d97706', '#065f46',
@@ -137,7 +138,7 @@ export default function ExpenseReport() {
           )}
         </div>
         {range && (
-          <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-muted)' }}>
+          <div style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
             Showing: <strong>{periodLabel}</strong> &nbsp;|&nbsp; {range[0]} — {range[1]}
           </div>
         )}
@@ -154,7 +155,7 @@ export default function ExpenseReport() {
         ? (
           <div className="card">
             <div className="empty">
-              <div className="empty-icon">📋</div>
+              <div className="empty-icon"><ClipboardList size={32} /></div>
               <p>No expenses found for this period.</p>
             </div>
           </div>
@@ -168,7 +169,7 @@ export default function ExpenseReport() {
                 {/* Pie chart */}
                 <div style={{ minWidth: 220, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <PieChart slices={deptRows} />
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Hover slice for details</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>Hover slice for details</div>
                 </div>
 
                 {/* Legend + table */}

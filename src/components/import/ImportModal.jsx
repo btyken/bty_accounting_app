@@ -11,6 +11,7 @@ import {
   parseTransactions,
 } from '../../utils/importParsers'
 import { fmt } from '../../utils/format'
+import { AlertTriangle, Upload } from 'lucide-react'
 
 const LABELS = {
   accounts:     'Chart of Accounts',
@@ -125,8 +126,8 @@ export default function ImportModal({ open, onClose, type, onImport }) {
               <td>{r.department || '—'}</td>
               <td>{r.entries.length} lines</td>
               <td>{ok
-                ? <span className="badge badge-green">✓ OK</span>
-                : <span className="badge badge-yellow">⚠️ Unbalanced</span>
+                ? <span className="badge badge-green">OK</span>
+                : <span className="badge badge-yellow"><AlertTriangle size={10} /> Unbalanced</span>
               }</td>
             </tr>
           )
@@ -154,7 +155,7 @@ export default function ImportModal({ open, onClose, type, onImport }) {
             )}
           </>
         ) : (
-          <button className="btn btn-primary" onClick={handleClose}>Done ✓</button>
+          <button className="btn btn-primary" onClick={handleClose}>Done</button>
         )
       }
     >
@@ -170,7 +171,7 @@ export default function ImportModal({ open, onClose, type, onImport }) {
             onDrop={onDrop}
             onClick={() => fileRef.current.click()}
           >
-            <div className="import-zone-icon">📂</div>
+            <div className="import-zone-icon"><Upload size={32} /></div>
             <div style={{ fontWeight: 600, marginBottom: 6 }}>Drop your Excel file here or click to browse</div>
             <div className="text-muted text-sm">Supports .xlsx, .xls, .csv</div>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }} onChange={onFileChange} />
@@ -202,24 +203,24 @@ export default function ImportModal({ open, onClose, type, onImport }) {
       {step === 'preview' && (
         <>
           <div style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 600 }}>📄 {fileName}</span>
+            <span style={{ fontWeight: 600 }}>{fileName}</span>
             {records.length > 0 && (
-              <span className="import-stat">✅ {records.length} record{records.length !== 1 ? 's' : ''} ready</span>
+              <span className="import-stat">{records.length} record{records.length !== 1 ? 's' : ''} ready</span>
             )}
             {warnings.length > 0 && (
               <span style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:6, background:'#fef3c7', color:'#92400e', fontWeight:600, fontSize:13 }}>
-                ⚠️ {warnings.length} unbalanced
+                {warnings.length} unbalanced
               </span>
             )}
             {errors.length > 0 && (
-              <span className="import-err">🚫 {errors.length} skipped</span>
+              <span className="import-err">{errors.length} skipped</span>
             )}
           </div>
 
           {/* Errors (hard — rows skipped) */}
           {errors.length > 0 && (
             <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '10px 14px', marginBottom: 10, fontSize: 12.5 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--red)' }}>🚫 Skipped rows (missing required data):</div>
+              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--neg)' }}>Skipped rows (missing required data):</div>
               {errors.map((e, i) => <div key={i} style={{ color: '#7f1d1d' }}>• {e}</div>)}
             </div>
           )}
@@ -227,7 +228,7 @@ export default function ImportModal({ open, onClose, type, onImport }) {
           {/* Warnings (soft — imported but flagged) */}
           {warnings.length > 0 && (
             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 14px', marginBottom: 14, fontSize: 12.5 }}>
-              <div style={{ fontWeight: 600, marginBottom: 6, color: '#92400e' }}>⚠️ Unbalanced entries — imported but flagged for review:</div>
+              <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--warn)', display: 'flex', alignItems: 'center', gap: 5 }}><AlertTriangle size={13} /> Unbalanced entries — imported but flagged for review:</div>
               <div style={{ maxHeight: 120, overflowY: 'auto' }}>
                 {warnings.map((w, i) => <div key={i} style={{ color: '#78350f' }}>• {w}</div>)}
               </div>
@@ -239,8 +240,8 @@ export default function ImportModal({ open, onClose, type, onImport }) {
             <>
               <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                 {['append', 'replace'].map(m => (
-                  <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', padding: '8px 14px', borderRadius: 6, border: `2px solid ${mode === m ? 'var(--green)' : 'var(--border)'}`, background: mode === m ? 'var(--green-light)' : 'var(--white)' }}>
-                    <input type="radio" name="import-mode" value={m} checked={mode === m} onChange={() => setMode(m)} style={{ accentColor: 'var(--green)' }} />
+                  <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', padding: '8px 14px', borderRadius: 6, border: `2px solid ${mode === m ? 'var(--gold)' : 'var(--border)'}`, background: mode === m ? 'var(--gold-soft)' : 'var(--card)' }}>
+                    <input type="radio" name="import-mode" value={m} checked={mode === m} onChange={() => setMode(m)} style={{ accentColor: 'var(--gold)' }} />
                     <div>
                       <div style={{ fontWeight: 600 }}>{m === 'append' ? 'Append' : 'Replace All'}</div>
                       <div className="text-muted text-sm">{m === 'append' ? 'Add to existing records' : 'Overwrite all existing records'}</div>
@@ -251,7 +252,7 @@ export default function ImportModal({ open, onClose, type, onImport }) {
 
               {mode === 'replace' && (
                 <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '8px 14px', marginBottom: 14, fontSize: 12.5, color: '#92400e' }}>
-                  ⚠️ <strong>Replace mode</strong> will delete all existing {LABELS[type].toLowerCase()} and account balances will be recalculated.
+                  <strong>Replace mode</strong> will delete all existing {LABELS[type].toLowerCase()} and account balances will be recalculated.
                 </div>
               )}
 
@@ -266,7 +267,7 @@ export default function ImportModal({ open, onClose, type, onImport }) {
           )}
 
           {records.length === 0 && errors.length === 0 && (
-            <div className="empty"><div className="empty-icon">📭</div><p>No valid records found in file.</p></div>
+            <div className="empty"><div className="empty-icon"><Upload size={28} /></div><p>No valid records found in file.</p></div>
           )}
         </>
       )}
@@ -274,12 +275,12 @@ export default function ImportModal({ open, onClose, type, onImport }) {
       {/* ── STEP: DONE ───────────────────────────────── */}
       {step === 'done' && (
         <div className="empty">
-          <div className="empty-icon">🎉</div>
+          <div className="empty-icon"><Upload size={32} /></div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Import Complete!</div>
           <p>{records.length} {LABELS[type].toLowerCase()} imported.</p>
           {warnings.length > 0 && (
             <div style={{ marginTop: 12, padding: '10px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, fontSize: 13, color: '#92400e' }}>
-              ⚠️ {warnings.length} unbalanced {LABELS[type].toLowerCase()} were imported and flagged. Review them in the Transactions list.
+              {warnings.length} unbalanced {LABELS[type].toLowerCase()} were imported and flagged. Review them in the Transactions list.
             </div>
           )}
         </div>

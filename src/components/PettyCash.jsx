@@ -6,6 +6,7 @@ import { DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import PieChart from './ui/PieChart'
 import DeleteAllModal from './ui/DeleteAllModal'
+import { Trash2, Wallet } from 'lucide-react'
 
 const BLANK = { date: today(), payee: '', purpose: '', amount: '', department: '', receiptNo: '' }
 
@@ -108,7 +109,7 @@ export default function PettyCash() {
       </div>
 
       {/* Period filter + action */}
-      <div style={{ background: 'var(--white)', borderRadius: 8, boxShadow: 'var(--shadow)', padding: '14px 18px', marginBottom: 16 }}>
+      <div style={{ background: 'var(--card)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)', padding: '14px 18px', marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {PERIODS.map(p => (
@@ -123,7 +124,7 @@ export default function PettyCash() {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             {isAdmin && (
-              <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+              <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}><Trash2 size={13} /> Delete All</button>
             )}
             <button className="btn btn-primary" onClick={openNew}>+ Add Petty Cash Entry</button>
           </div>
@@ -132,7 +133,7 @@ export default function PettyCash() {
         {/* Custom date inputs */}
         {period === 'custom' && (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>From</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>From</span>
             <input
               className="form-input"
               type="date"
@@ -140,7 +141,7 @@ export default function PettyCash() {
               value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
             />
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>To</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>To</span>
             <input
               className="form-input"
               type="date"
@@ -149,7 +150,7 @@ export default function PettyCash() {
               onChange={e => setDateTo(e.target.value)}
             />
             {dateFrom && dateTo && (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
                 Showing {dateFrom} — {dateTo}
               </span>
             )}
@@ -158,7 +159,7 @@ export default function PettyCash() {
 
         {/* Active range label for preset periods */}
         {period !== 'all' && period !== 'custom' && range && (
-          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)' }}>
             Showing: <strong>{range[0]}</strong> — <strong>{range[1]}</strong>
             &nbsp;·&nbsp; {filtered.length} result{filtered.length !== 1 ? 's' : ''}
           </div>
@@ -198,7 +199,7 @@ export default function PettyCash() {
                 <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                   <div style={{ minWidth: 160, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <PieChart slices={deptRows} />
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Hover for details</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Hover for details</div>
                   </div>
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <table>
@@ -230,7 +231,7 @@ export default function PettyCash() {
                   </div>
                 </div>
               ) : (
-                <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No department data.</p>
+                <p style={{ color: 'var(--muted)', fontSize: 13 }}>No department data.</p>
               )}
             </div>
 
@@ -263,7 +264,7 @@ export default function PettyCash() {
                   </tbody>
                 </table>
               ) : (
-                <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No payee data.</p>
+                <p style={{ color: 'var(--muted)', fontSize: 13 }}>No payee data.</p>
               )}
             </div>
           </div>
@@ -275,7 +276,7 @@ export default function PettyCash() {
         {filtered.length === 0
           ? (
             <div className="empty">
-              <div className="empty-icon">💵</div>
+              <div className="empty-icon"><Wallet size={32} /></div>
               <p>No petty cash transactions for this period.</p>
               <button className="btn btn-primary" onClick={openNew}>+ Add Petty Cash Entry</button>
             </div>
@@ -311,7 +312,7 @@ export default function PettyCash() {
                 </table>
               </div>
               <div style={{ marginTop: 14, textAlign: 'right', fontWeight: 700, fontSize: 15 }}>
-                Period Total: <span style={{ color: 'var(--red)' }}>{fmt(total)}</span>
+                Period Total: <span style={{ color: 'var(--neg)' }}>{fmt(total)}</span>
               </div>
             </>
           )
@@ -330,7 +331,7 @@ export default function PettyCash() {
           </>
         }
       >
-        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
         <div className="grid-2">
           <div className="form-group">
             <label className="form-label">Date</label>

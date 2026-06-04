@@ -16,7 +16,7 @@ function ChartSection({ title, slices, totalLabel, totalValue, totalCls }) {
       <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ minWidth: 220, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <PieChart slices={slices} />
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>Hover slice for details</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>Hover slice for details</div>
         </div>
         <div style={{ flex: 1, minWidth: 260 }}>
           <table>
@@ -77,7 +77,7 @@ export default function ProfitLoss() {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Report</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Report</div>
         <h2 style={{ fontSize: 22, margin: '4px 0' }}>Profit &amp; Loss Statement</h2>
         <div className="text-muted text-sm">
           As of {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -86,7 +86,7 @@ export default function ProfitLoss() {
 
       {revenueSlices.length > 0 && (
         <ChartSection
-          title="💰 Revenue Breakdown"
+          title="Revenue Breakdown"
           slices={revenueSlices}
           totalLabel="Total Revenue"
           totalValue={totalRevenue}
@@ -96,7 +96,7 @@ export default function ProfitLoss() {
 
       {expenseSlices.length > 0 && (
         <ChartSection
-          title="💸 Expense Breakdown"
+          title="Expense Breakdown"
           slices={expenseSlices}
           totalLabel="Total Expenses"
           totalValue={totalExpenses}
@@ -108,7 +108,7 @@ export default function ProfitLoss() {
         <div className="table-wrap">
           <table>
             <tbody>
-              <tr><td colSpan={2}><div className="report-section-title">💰 Income</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Income</div></td></tr>
               {revenueAccs.map(a => (
                 <tr key={a.id} className="report-row report-group">
                   <td>{a.code} — {a.name}</td>
@@ -122,7 +122,7 @@ export default function ProfitLoss() {
 
               <tr><td colSpan={2} style={{ height: 12 }} /></tr>
 
-              <tr><td colSpan={2}><div className="report-section-title">💸 Expenses</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Expenses</div></td></tr>
               {expenseAccs.map(a => (
                 <tr key={a.id} className="report-row report-group">
                   <td>{a.code} — {a.name}</td>

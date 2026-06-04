@@ -152,7 +152,7 @@ export default function TrialBalance() {
 
       {/* Report title */}
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
+        <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>
           Financial Report
         </div>
         <h2 style={{ fontSize: 22, margin: '4px 0' }}>Trial Balance</h2>
@@ -177,7 +177,7 @@ export default function TrialBalance() {
         {period === 'custom' && (
           <div style={{ display: 'flex', gap: 16, marginTop: 14, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                 Start Date
               </label>
               <input
@@ -189,7 +189,7 @@ export default function TrialBalance() {
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', whiteSpace: 'nowrap' }}>
                 End Date
               </label>
               <input
@@ -204,7 +204,7 @@ export default function TrialBalance() {
         )}
 
         {range && (
-          <div style={{ marginTop: 10, fontSize: 13, color: 'var(--text-muted)' }}>
+          <div style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
             Showing: <strong>{range[0]} – {range[1]}</strong>
             <span style={{ marginLeft: 10, fontSize: 12 }}>
               (net activity from journal entries &amp; direct expenses)
@@ -220,7 +220,7 @@ export default function TrialBalance() {
             type="checkbox"
             checked={hideZero}
             onChange={e => setHideZero(e.target.checked)}
-            style={{ accentColor: 'var(--green)', width: 14, height: 14 }}
+            style={{ accentColor: 'var(--gold)', width: 14, height: 14 }}
           />
           Hide zero-balance accounts
         </label>
@@ -230,27 +230,27 @@ export default function TrialBalance() {
       <div className="grid-3" style={{ marginBottom: 20 }}>
         <div className="card">
           <div className="card-title">Total Debits</div>
-          <div className="card-value" style={{ color: 'var(--blue)' }}>{fmt(totalDr)}</div>
+          <div className="card-value" style={{ color: 'var(--ink)' }}>{fmt(totalDr)}</div>
         </div>
         <div className="card">
           <div className="card-title">Total Credits</div>
-          <div className="card-value" style={{ color: 'var(--blue)' }}>{fmt(totalCr)}</div>
+          <div className="card-value">{fmt(totalCr)}</div>
         </div>
         <div className="card">
           <div className="card-title">Balance Status</div>
-          <div className="card-value" style={{ fontSize: 18, color: ok ? 'var(--green)' : 'var(--red)' }}>
-            {ok ? '✅ Balanced' : `⚠️ Off by ${fmt(diff)}`}
+          <div className="card-value" style={{ fontSize: 18, color: ok ? 'var(--pos)' : 'var(--neg)' }}>
+            {ok ? 'Balanced' : `Off by ${fmt(diff)}`}
           </div>
         </div>
       </div>
 
       {!ok && (
         <div style={{
-          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
-          padding: '12px 18px', marginBottom: 20, color: '#dc2626', fontWeight: 600,
+          background: 'var(--neg-bg)', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)',
+          padding: '12px 18px', marginBottom: 20, color: 'var(--neg)', fontWeight: 600,
           display: 'flex', alignItems: 'center', gap: 10,
         }}>
-          ⚠️ Trial balance is out of balance by {fmt(diff)}. Review your journal entries for missing or unequal debit/credit lines.
+          Trial balance is out of balance by {fmt(diff)}. Review your journal entries for missing or unequal debit/credit lines.
         </div>
       )}
 
@@ -304,7 +304,7 @@ export default function TrialBalance() {
                         </td>
                         <td className="text-right">
                           {row.credit > 0
-                            ? <strong style={{ color: 'var(--blue)' }}>{fmt(row.credit)}</strong>
+                            ? <strong style={{ color: 'var(--ink)' }}>{fmt(row.credit)}</strong>
                             : <span style={{ color: '#d1d5db' }}>—</span>}
                         </td>
                       </tr>
@@ -316,7 +316,7 @@ export default function TrialBalance() {
                       <td className="text-right" style={{ fontWeight: 600 }}>
                         {tDr > 0 ? fmt(tDr) : '—'}
                       </td>
-                      <td className="text-right" style={{ fontWeight: 600, color: 'var(--blue)' }}>
+                      <td className="text-right" style={{ fontWeight: 600, color: 'var(--ink)' }}>
                         {tCr > 0 ? fmt(tCr) : '—'}
                       </td>
                     </tr>
@@ -326,19 +326,19 @@ export default function TrialBalance() {
               })}
             </tbody>
             <tfoot>
-              <tr style={{ background: 'var(--green-light)', borderTop: '2px solid var(--green)' }}>
+              <tr style={{ background: 'var(--gold-soft)', borderTop: '2px solid var(--gold)' }}>
                 <td colSpan={3} style={{ padding: '10px 14px', fontWeight: 700, fontSize: 15 }}>
                   TOTAL
                 </td>
                 <td
                   className="text-right"
-                  style={{ padding: '10px 14px', fontWeight: 700, fontSize: 15, color: ok ? 'inherit' : 'var(--red)' }}
+                  style={{ padding: '10px 14px', fontWeight: 700, fontSize: 15, color: ok ? 'inherit' : 'var(--neg)' }}
                 >
                   {fmt(totalDr)}
                 </td>
                 <td
                   className="text-right"
-                  style={{ padding: '10px 14px', fontWeight: 700, fontSize: 15, color: ok ? 'var(--blue)' : 'var(--red)' }}
+                  style={{ padding: '10px 14px', fontWeight: 700, fontSize: 15, color: ok ? 'var(--text)' : 'var(--neg)' }}
                 >
                   {fmt(totalCr)}
                 </td>
@@ -346,11 +346,11 @@ export default function TrialBalance() {
               <tr>
                 <td
                   colSpan={5}
-                  style={{ padding: '6px 14px', fontSize: 12, color: ok ? 'var(--text-muted)' : 'var(--red)' }}
+                  style={{ padding: '6px 14px', fontSize: 12, color: ok ? 'var(--muted)' : 'var(--neg)' }}
                 >
                   {ok
-                    ? '✅ Total debits equal total credits — books are in balance'
-                    : `⚠️ Out of balance — difference of ${fmt(diff)}`}
+                    ? 'Total debits equal total credits — books are in balance'
+                    : `Out of balance — difference of ${fmt(diff)}`}
                 </td>
               </tr>
             </tfoot>

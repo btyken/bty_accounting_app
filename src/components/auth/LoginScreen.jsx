@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../store/AuthContext'
 import logo from '../../assets/logo.svg'
+import { Eye, EyeOff } from 'lucide-react'
 
 export default function LoginScreen() {
   const { login, loginError, setLoginError } = useAuth()
@@ -45,11 +46,11 @@ export default function LoginScreen() {
 
           {loginError && (
             <div style={{
-              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
-              padding: '10px 14px', marginBottom: 18, color: '#dc2626', fontSize: 13,
+              background: 'var(--neg-bg)', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)',
+              padding: '10px 14px', marginBottom: 18, color: 'var(--neg)', fontSize: 13,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              ⚠️ {loginError}
+              {loginError}
             </div>
           )}
 
@@ -101,7 +102,7 @@ export default function LoginScreen() {
                   background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9ca3af',
                 }}
               >
-                {showPw ? '🙈' : '👁️'}
+                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
           </div>
@@ -110,13 +111,13 @@ export default function LoginScreen() {
             type="submit"
             disabled={loading}
             style={{
-              width: '100%', padding: '11px', background: loading ? '#555555' : '#111111',
-              color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 600,
+              width: '100%', padding: '11px', background: loading ? 'var(--ink-soft)' : 'var(--ink)',
+              color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 15, fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer', transition: 'background .15s',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            {loading ? '⏳ Signing in…' : '🔓 Sign In'}
+            {loading ? 'Signing in…' : 'Sign In'}
           </button>
 
           <div style={{ marginTop: 20, padding: '12px 14px', background: '#f3f4f6', borderRadius: 8, fontSize: 12, color: '#374151' }}>

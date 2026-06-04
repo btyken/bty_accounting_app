@@ -6,6 +6,7 @@ import { generateInvoiceHTML, printInvoice } from '../utils/invoicePrint'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
 import DeleteAllModal from './ui/DeleteAllModal'
+import { Trash2, Upload, Printer, FileText, X } from 'lucide-react'
 
 const BLANK_ITEM = () => ({ id: uid(), skuCode: '', description: '', qty: 1, rate: 0, amount: 0 })
 
@@ -89,9 +90,9 @@ export default function Invoices() {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 16 }}>
         {isAdmin && (
-          <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+          <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}><Trash2 size={13} /> Delete All</button>
         )}
-        <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
+        <button className="btn btn-secondary" onClick={() => setImportOpen(true)}><Upload size={13} /> Import Excel</button>
         <button className="btn btn-primary" onClick={openNew}>+ New Invoice</button>
       </div>
 
@@ -99,7 +100,7 @@ export default function Invoices() {
         {filtered.length === 0
           ? (
             <div className="empty">
-              <div className="empty-icon">🧾</div>
+              <div className="empty-icon"><FileText size={32} /></div>
               <p>No invoices found.</p>
               <button className="btn btn-primary" onClick={openNew}>+ Create Invoice</button>
             </div>
@@ -156,7 +157,7 @@ export default function Invoices() {
             <>
               <button className="btn btn-secondary" onClick={() => setViewInv(null)}>Close</button>
               <button className="btn btn-primary" onClick={() => printInvoice(viewInv)}>
-                🖨️ Print / Download PDF
+                <Printer size={13} /> Print / Download PDF
               </button>
             </>
           }
@@ -182,7 +183,7 @@ export default function Invoices() {
           </>
         }
       >
-        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
 
         {/* Order Info */}
         <div className="grid-3" style={{ marginBottom: 16 }}>
@@ -266,7 +267,7 @@ export default function Invoices() {
                   <td><input className="form-input" type="number" value={item.qty} min="0" onChange={e => updateItem(item.id, 'qty', e.target.value)} /></td>
                   <td><input className="form-input" type="number" value={item.rate} min="0" step="0.01" onChange={e => updateItem(item.id, 'rate', e.target.value)} /></td>
                   <td style={{ fontWeight: 600 }}>{fmt((parseFloat(item.qty)||0)*(parseFloat(item.rate)||0))}</td>
-                  <td><button className="del-btn" onClick={() => removeItem(item.id)}>✕</button></td>
+                  <td><button className="del-btn" onClick={() => removeItem(item.id)}><X size={13} /></button></td>
                 </tr>
               ))}
             </tbody>

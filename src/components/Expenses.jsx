@@ -6,6 +6,7 @@ import { PAYMENT_METHODS, DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
 import DeleteAllModal from './ui/DeleteAllModal'
+import { Trash2, Upload, CreditCard } from 'lucide-react'
 
 const BLANK = { date: today(), amount: '', vendor: '', accountId: '', method: 'Cash', description: '', department: '' }
 
@@ -126,9 +127,9 @@ export default function Expenses() {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {isAdmin && (
-            <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+            <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}><Trash2 size={13} /> Delete All</button>
           )}
-          <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
+          <button className="btn btn-secondary" onClick={() => setImportOpen(true)}><Upload size={13} /> Import Excel</button>
           <button className="btn btn-primary" onClick={openNew}>+ Record Expense</button>
         </div>
       </div>
@@ -151,7 +152,7 @@ export default function Expenses() {
         {viewData.length === 0
           ? (
             <div className="empty">
-              <div className="empty-icon">💳</div>
+              <div className="empty-icon"><CreditCard size={32} /></div>
               <p>{view === 'journal' ? 'No journal entries for this period.' : 'No expenses recorded for this period.'}</p>
               {view !== 'journal' && <button className="btn btn-primary" onClick={openNew}>+ Record Expense</button>}
             </div>
@@ -237,7 +238,7 @@ export default function Expenses() {
           </>
         }
       >
-        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
         <div className="grid-2">
           <div className="form-group">
             <label className="form-label">Date</label>

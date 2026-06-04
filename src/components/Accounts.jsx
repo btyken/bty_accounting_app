@@ -6,6 +6,7 @@ import { ACCOUNT_TYPES } from '../data/defaults'
 import Modal from './ui/Modal'
 import ImportModal from './import/ImportModal'
 import DeleteAllModal from './ui/DeleteAllModal'
+import { Trash2, Upload } from 'lucide-react'
 
 const BLANK = { code: '', name: '', type: 'Asset', balance: 0 }
 
@@ -44,9 +45,9 @@ export default function Accounts() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 20 }}>
         {isAdmin && (
-          <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}>🗑 Delete All</button>
+          <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}><Trash2 size={13} /> Delete All</button>
         )}
-        <button className="btn btn-secondary" onClick={() => setImportOpen(true)}>⬆️ Import Excel</button>
+        <button className="btn btn-secondary" onClick={() => setImportOpen(true)}><Upload size={13} /> Import Excel</button>
         <button className="btn btn-primary" onClick={openNew}>+ New Account</button>
       </div>
 
@@ -99,7 +100,7 @@ export default function Accounts() {
           </>
         }
       >
-        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
         <div className="form-group">
           <label className="form-label">Account Number</label>
           <input className="form-input" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} placeholder="e.g. 1050" />

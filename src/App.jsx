@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Printer } from 'lucide-react'
 import { AppProvider, useApp } from './store/AppContext'
 import { AuthProvider, useAuth } from './store/AuthContext'
 import Sidebar from './components/layout/Sidebar'
@@ -33,7 +34,7 @@ function AppInner() {
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: '#111111', color: '#fff', fontSize: 16, gap: 12,
       }}>
-        <span style={{ fontSize: 28 }}>📊</span> Loading…
+        Loading…
       </div>
     )
   }
@@ -42,7 +43,7 @@ function AppInner() {
   if (!currentUser) return <LoginScreen />
 
   const topbarActions = PRINT_PAGES.includes(page)
-    ? <button className="btn btn-secondary" onClick={() => window.print()}>🖨 Print</button>
+    ? <button className="btn btn-secondary" onClick={() => window.print()}><Printer size={14} /> Print</button>
     : null
 
   const renderPage = () => {

@@ -1,35 +1,39 @@
 import React from 'react'
 import { useAuth } from '../../store/AuthContext'
-import logo from '../../assets/logo.svg'
+import {
+  LayoutDashboard, BookOpen, ArrowLeftRight, Edit3, FileText, CreditCard, Wallet,
+  Hash, BookMarked, FileBarChart2, TrendingUp, Scale, ClipboardList, CalendarRange,
+  Users, LogOut, ShieldCheck, User,
+} from 'lucide-react'
 
 const NAV = [
-  { section: 'Overview', items: [{ id: 'dashboard', icon: '📊', label: 'Dashboard' }] },
+  { section: 'Overview', items: [{ id: 'dashboard', Icon: LayoutDashboard, label: 'Dashboard' }] },
   {
     section: 'Accounting',
     items: [
-      { id: 'accounts',     icon: '📒', label: 'Chart of Accounts' },
-      { id: 'transactions', icon: '↕️', label: 'Journal Entry' },
-      { id: 'adjusting',   icon: '✏️', label: 'Adjusting Entries' },
+      { id: 'accounts',     Icon: BookOpen,        label: 'Chart of Accounts' },
+      { id: 'transactions', Icon: ArrowLeftRight,  label: 'Journal Entry' },
+      { id: 'adjusting',   Icon: Edit3,            label: 'Adjusting Entries' },
     ],
   },
   {
     section: 'Money In / Out',
     items: [
-      { id: 'invoices',  icon: '🧾', label: 'Invoices' },
-      { id: 'expenses',  icon: '💳', label: 'Expenses' },
-      { id: 'pettycash', icon: '💵', label: 'Petty Cash' },
+      { id: 'invoices',  Icon: FileText,  label: 'Invoices' },
+      { id: 'expenses',  Icon: CreditCard, label: 'Expenses' },
+      { id: 'pettycash', Icon: Wallet,    label: 'Petty Cash' },
     ],
   },
   {
     section: 'Reports',
     items: [
-      { id: 'trialbalance', icon: '🔢', label: 'Trial Balance' },
-      { id: 'gl',           icon: '📒', label: 'General Ledger' },
-      { id: 'financial',    icon: '📑', label: 'Financial Statements' },
-      { id: 'pl',           icon: '📈', label: 'Profit & Loss' },
-      { id: 'balance',      icon: '⚖️', label: 'Balance Sheet' },
-      { id: 'expreport',    icon: '📋', label: 'Expense Report' },
-      { id: 'aging',        icon: '📅', label: 'Aging Reports' },
+      { id: 'trialbalance', Icon: Hash,          label: 'Trial Balance' },
+      { id: 'gl',           Icon: BookMarked,    label: 'General Ledger' },
+      { id: 'financial',    Icon: FileBarChart2, label: 'Financial Statements' },
+      { id: 'pl',           Icon: TrendingUp,    label: 'Profit & Loss' },
+      { id: 'balance',      Icon: Scale,         label: 'Balance Sheet' },
+      { id: 'expreport',    Icon: ClipboardList, label: 'Expense Report' },
+      { id: 'aging',        Icon: CalendarRange, label: 'Aging Reports' },
     ],
   },
 ]
@@ -39,20 +43,35 @@ export default function Sidebar({ page, onNavigate }) {
 
   return (
     <nav className="sidebar">
+      {/* Logo */}
       <div className="sidebar-logo">
-        <img src={logo} alt="Spartan BTY Inc." style={{ width: '100%', maxWidth: 140, display: 'block', margin: '0 auto', filter: 'invert(1)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: 7,
+            background: 'linear-gradient(135deg,#b8923f,#9a7a32)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <span style={{ color: '#0b0b0c', fontWeight: 900, fontSize: 14, letterSpacing: '-0.5px' }}>S</span>
+          </div>
+          <div>
+            <div style={{ color: 'var(--side-text-hi)', fontWeight: 700, fontSize: 12.5, letterSpacing: '.06em' }}>SPARTAN BTY</div>
+            <div style={{ color: 'var(--side-text)', fontSize: 10, marginTop: 1 }}>Accounting</div>
+          </div>
+        </div>
       </div>
 
       {NAV.map(({ section, items }) => (
         <div className="sidebar-section" key={section}>
           <div className="sidebar-label">{section}</div>
-          {items.map(({ id, icon, label }) => (
+          {items.map(({ id, Icon, label }) => (
             <div
               key={id}
               className={`nav-item${page === id ? ' active' : ''}`}
               onClick={() => onNavigate(id)}
             >
-              <span className="nav-icon">{icon}</span>
+              <span className="nav-icon">
+                <Icon size={15} strokeWidth={1.75} style={{ color: page === id ? 'var(--gold)' : 'var(--side-text)' }} />
+              </span>
               {label}
             </div>
           ))}
@@ -67,43 +86,49 @@ export default function Sidebar({ page, onNavigate }) {
             className={`nav-item${page === 'users' ? ' active' : ''}`}
             onClick={() => onNavigate('users')}
           >
-            <span className="nav-icon">👥</span>
+            <span className="nav-icon">
+              <Users size={15} strokeWidth={1.75} style={{ color: page === 'users' ? 'var(--gold)' : 'var(--side-text)' }} />
+            </span>
             User Management
           </div>
         </div>
       )}
 
-      {/* User info + logout — pinned to bottom */}
-      <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,.08)', padding: '14px 18px' }}>
+      {/* User info + logout */}
+      <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,.07)', padding: '14px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: '50%', background: '#444444',
+            width: 30, height: 30, borderRadius: '50%', background: 'rgba(184,146,63,.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0,
+            fontSize: 13, fontWeight: 700, color: 'var(--gold)', flexShrink: 0,
           }}>
             {currentUser?.username?.[0]?.toUpperCase() || '?'}
           </div>
           <div style={{ overflow: 'hidden' }}>
-            <div style={{ color: '#fff', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div style={{ color: 'var(--side-text-hi)', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {currentUser?.username}
             </div>
-            <div style={{ color: '#6b8c6b', fontSize: 11, textTransform: 'capitalize' }}>
-              {currentUser?.role === 'admin' ? '🛡 Admin' : '👤 User'}
+            <div style={{ color: 'var(--side-text)', fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+              {currentUser?.role === 'admin'
+                ? <><ShieldCheck size={10} strokeWidth={2} /> Admin</>
+                : <><User size={10} strokeWidth={2} /> Member</>
+              }
             </div>
           </div>
         </div>
         <button
           onClick={logout}
           style={{
-            width: '100%', padding: '7px', background: 'rgba(255,255,255,.07)',
-            border: '1px solid rgba(255,255,255,.12)', borderRadius: 6,
-            color: '#cdd9cd', fontSize: 12.5, cursor: 'pointer', fontWeight: 500,
-            transition: 'background .15s',
+            width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,.05)',
+            border: '1px solid rgba(255,255,255,.1)', borderRadius: 6,
+            color: 'var(--side-text)', fontSize: 12.5, cursor: 'pointer', fontWeight: 500,
+            transition: 'background .15s, color .15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}
-          onMouseOver={e => e.target.style.background = 'rgba(255,255,255,.13)'}
-          onMouseOut={e => e.target.style.background = 'rgba(255,255,255,.07)'}
+          onMouseOver={e => { e.currentTarget.style.background = 'rgba(255,255,255,.1)'; e.currentTarget.style.color = 'var(--side-text-hi)'; }}
+          onMouseOut={e => { e.currentTarget.style.background = 'rgba(255,255,255,.05)'; e.currentTarget.style.color = 'var(--side-text)'; }}
         >
-          🚪 Sign Out
+          <LogOut size={12} strokeWidth={1.75} />
+          Sign Out
         </button>
       </div>
     </nav>

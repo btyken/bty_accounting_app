@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useApp } from '../../store/AppContext'
 import { fmt, today, uid } from '../../utils/format'
+import { Scale } from 'lucide-react'
 
 const TABS = [
   { id: 'income',   label: 'Income Statement'        },
@@ -15,7 +16,7 @@ function ReportHeader({ title, subtitle }) {
   const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   return (
     <div style={{ textAlign: 'center', marginBottom: 24 }}>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Statement</div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Statement</div>
       <h2 style={{ fontSize: 22, margin: '4px 0' }}>{title}</h2>
       <div className="text-muted text-sm">{subtitle || `As of ${dateStr}`}</div>
     </div>
@@ -47,7 +48,7 @@ function IncomeStatement({ data }) {
           <table>
             <tbody>
               {/* Revenue */}
-              <tr><td colSpan={2}><div className="report-section-title">💰 Revenue</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Revenue</div></td></tr>
               {revenueAccs.map(a => (
                 <tr key={a.id} className="report-row report-group">
                   <td>{a.code} — {a.name}</td>
@@ -63,7 +64,7 @@ function IncomeStatement({ data }) {
               {hasCOGS && (
                 <>
                   <tr><td colSpan={2} style={{ height: 10 }} /></tr>
-                  <tr><td colSpan={2}><div className="report-section-title">📦 Cost of Goods Sold</div></td></tr>
+                  <tr><td colSpan={2}><div className="report-section-title">Cost of Goods Sold</div></td></tr>
                   {cogsAccs.map(a => (
                     <tr key={a.id} className="report-row report-group">
                       <td>{a.code} — {a.name}</td>
@@ -74,7 +75,7 @@ function IncomeStatement({ data }) {
                     <td>Total COGS</td>
                     <td className="text-right amount-neg">({fmt(totalCOGS)})</td>
                   </tr>
-                  <tr className="report-row report-subtotal" style={{ fontWeight: 700, background: 'var(--green-light)' }}>
+                  <tr className="report-row report-subtotal" style={{ fontWeight: 700, background: 'var(--gold-soft)' }}>
                     <td>Gross Profit</td>
                     <td className={`text-right ${grossProfit >= 0 ? 'amount-pos' : 'amount-neg'}`}>{fmt(grossProfit)}</td>
                   </tr>
@@ -85,7 +86,7 @@ function IncomeStatement({ data }) {
               {hasOpExp && (
                 <>
                   <tr><td colSpan={2} style={{ height: 10 }} /></tr>
-                  <tr><td colSpan={2}><div className="report-section-title">💸 {hasCOGS ? 'Operating Expenses' : 'Expenses'}</div></td></tr>
+                  <tr><td colSpan={2}><div className="report-section-title">{hasCOGS ? 'Operating Expenses' : 'Expenses'}</div></td></tr>
                   {opExpAccs.map(a => (
                     <tr key={a.id} className="report-row report-group">
                       <td>{a.code} — {a.name}</td>
@@ -103,7 +104,7 @@ function IncomeStatement({ data }) {
               {!hasCOGS && !hasOpExp && allExpAccs.length > 0 && (
                 <>
                   <tr><td colSpan={2} style={{ height: 10 }} /></tr>
-                  <tr><td colSpan={2}><div className="report-section-title">💸 Expenses</div></td></tr>
+                  <tr><td colSpan={2}><div className="report-section-title">Expenses</div></td></tr>
                   {allExpAccs.map(a => (
                     <tr key={a.id} className="report-row report-group">
                       <td>{a.code} — {a.name}</td>
@@ -162,7 +163,7 @@ function BalanceSheetView({ data }) {
   const SubGroup = ({ label, accounts, total }) => accounts.length === 0 ? null : (
     <>
       <tr>
-        <td colSpan={2} style={{ paddingLeft: 14, paddingTop: 10, paddingBottom: 2, fontWeight: 600, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+        <td colSpan={2} style={{ paddingLeft: 14, paddingTop: 10, paddingBottom: 2, fontWeight: 600, fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
           {label}
         </td>
       </tr>
@@ -182,7 +183,7 @@ function BalanceSheetView({ data }) {
           <table>
             <tbody>
               {/* Assets */}
-              <tr><td colSpan={2}><div className="report-section-title">🏦 Assets</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Assets</div></td></tr>
               <SubGroup label="Current Assets"    accounts={currentAssets}    total={totalCurrentAssets} />
               <SubGroup label="Non-Current Assets" accounts={nonCurrentAssets} total={totalNonCurrentAssets} />
               <tr className="report-row report-subtotal">
@@ -193,7 +194,7 @@ function BalanceSheetView({ data }) {
               <tr><td colSpan={2} style={{ height: 16 }} /></tr>
 
               {/* Liabilities */}
-              <tr><td colSpan={2}><div className="report-section-title">📋 Liabilities</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Liabilities</div></td></tr>
               <SubGroup label="Current Liabilities"     accounts={currentLiabs}    total={totalCurrentLiabs} />
               <SubGroup label="Non-Current Liabilities" accounts={nonCurrentLiabs} total={totalNonCurrentLiabs} />
               <tr className="report-row report-subtotal">
@@ -204,7 +205,7 @@ function BalanceSheetView({ data }) {
               <tr><td colSpan={2} style={{ height: 16 }} /></tr>
 
               {/* Equity */}
-              <tr><td colSpan={2}><div className="report-section-title">💼 Equity</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Equity</div></td></tr>
               {equities.map(a => <AccRow key={a.id} acc={a} />)}
               {netIncome !== 0 && (
                 <tr className="report-row report-group">
@@ -225,7 +226,7 @@ function BalanceSheetView({ data }) {
               </tr>
               <tr>
                 <td colSpan={2} className="text-muted text-sm" style={{ paddingTop: 6 }}>
-                  {balanced ? '✅ Balance sheet balances' : '⚠️ Out of balance — check your entries'}
+                  {balanced ? 'Balance sheet balances' : 'Out of balance — check your entries'}
                 </td>
               </tr>
             </tbody>
@@ -331,7 +332,7 @@ function CashFlowStatement({ data }) {
 
   const EmptyRow = () => (
     <tr className="report-row report-group">
-      <td style={{ paddingLeft: 32, color: 'var(--text-muted)' }}>No activity recorded</td>
+      <td style={{ paddingLeft: 32, color: 'var(--muted)' }}>No activity recorded</td>
       <td className="text-right text-muted">—</td>
     </tr>
   )
@@ -349,7 +350,7 @@ function CashFlowStatement({ data }) {
           <table>
             <tbody>
               {/* Operating */}
-              <tr><td colSpan={2}><div className="report-section-title">⚙️ Operating Activities</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Operating Activities</div></td></tr>
               {cashFromCustomers > 0 && <DetailRow label="Cash received from customers" amount={cashFromCustomers} />}
               {cashPaidExpenses  > 0 && <DetailRow label="Cash paid for expenses"       amount={-cashPaidExpenses} />}
               {opLines.map((l, i) => <DetailRow key={i} label={l.label} amount={l.amount} />)}
@@ -359,7 +360,7 @@ function CashFlowStatement({ data }) {
               <tr><td colSpan={2} style={{ height: 14 }} /></tr>
 
               {/* Investing */}
-              <tr><td colSpan={2}><div className="report-section-title">🏗️ Investing Activities</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Investing Activities</div></td></tr>
               {invLines.length === 0 && <EmptyRow />}
               {invLines.map((l, i) => <DetailRow key={i} label={l.label} amount={l.amount} />)}
               <SectionTotal label="Net Cash from Investing Activities" amount={totalInvesting} />
@@ -367,7 +368,7 @@ function CashFlowStatement({ data }) {
               <tr><td colSpan={2} style={{ height: 14 }} /></tr>
 
               {/* Financing */}
-              <tr><td colSpan={2}><div className="report-section-title">💼 Financing Activities</div></td></tr>
+              <tr><td colSpan={2}><div className="report-section-title">Financing Activities</div></td></tr>
               {finLines.length === 0 && <EmptyRow />}
               {finLines.map((l, i) => <DetailRow key={i} label={l.label} amount={l.amount} />)}
               <SectionTotal label="Net Cash from Financing Activities" amount={totalFinancing} />
@@ -461,14 +462,14 @@ function ClosingEntries({ data, addTransaction }) {
 
       {isPosted && (
         <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '10px 16px', marginBottom: 20, color: '#166534', fontSize: 13 }}>
-          ✅ Closing entries for FY {thisYear} have been posted. Revenue and expense accounts have been transferred to Retained Earnings. To reverse, delete the <strong>CLOSE-{thisYear}</strong> journal entry in Transactions.
+          Closing entries for FY {thisYear} have been posted. Revenue and expense accounts have been transferred to Retained Earnings. To reverse, delete the <strong>CLOSE-{thisYear}</strong> journal entry in Transactions.
         </div>
       )}
 
       {!hasActivity ? (
         <div className="card">
           <div className="empty">
-            <div className="empty-icon">✅</div>
+            <div className="empty-icon"><CheckCircle2 size={32} /></div>
             <p>All revenue and expense accounts are already at zero. No closing entries needed.</p>
           </div>
         </div>
@@ -478,7 +479,7 @@ function ClosingEntries({ data, addTransaction }) {
           {revenueAccs.length > 0 && (
             <div className="card" style={{ marginBottom: 18 }}>
               <div className="section-header">Step 1 — Close Revenue Accounts</div>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
                 Debit each revenue account to bring its credit balance to zero, crediting Retained Earnings.
               </p>
               <div className="table-wrap">
@@ -516,7 +517,7 @@ function ClosingEntries({ data, addTransaction }) {
           {expenseAccs.length > 0 && (
             <div className="card" style={{ marginBottom: 18 }}>
               <div className="section-header">Step 2 — Close Expense Accounts</div>
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14, lineHeight: 1.5 }}>
                 Credit each expense account to bring its debit balance to zero, debiting Retained Earnings.
               </p>
               <div className="table-wrap">
@@ -576,7 +577,7 @@ function ClosingEntries({ data, addTransaction }) {
           {/* Warnings */}
           {!retainedEarnings && (
             <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6, padding: '10px 16px', marginBottom: 16, color: '#991b1b', fontSize: 13 }}>
-              ⚠️ <strong>Retained Earnings account not found.</strong> Add a "Retained Earnings" (type: Equity) account to your Chart of Accounts before posting.
+              <strong>Retained Earnings account not found.</strong> Add a "Retained Earnings" (type: Equity) account to your Chart of Accounts before posting.
             </div>
           )}
 
@@ -585,17 +586,17 @@ function ClosingEntries({ data, addTransaction }) {
             <div style={{ textAlign: 'center', paddingBottom: 24 }}>
               {!confirm ? (
                 <button className="btn btn-primary" style={{ padding: '10px 28px', fontSize: 14 }} onClick={() => setConfirm(true)}>
-                  📋 Post Closing Entries
+                  Post Closing Entries
                 </button>
               ) : (
                 <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '20px 24px', display: 'inline-block', maxWidth: 500, textAlign: 'left' }}>
-                  <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>⚠️ Confirm Posting Closing Entries</div>
+                  <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 14 }}>Confirm Posting Closing Entries</div>
                   <p style={{ fontSize: 13, color: '#78350f', marginBottom: 16, lineHeight: 1.6 }}>
                     This will post a journal entry (<strong>CLOSE-{thisYear}</strong>) that zeroes out all revenue and expense accounts and transfers the net {netIncome >= 0 ? 'income' : 'loss'} of <strong>{fmt(Math.abs(netIncome))}</strong> to Retained Earnings. You can undo this by deleting the entry from Transactions.
                   </p>
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                     <button className="btn btn-secondary" onClick={() => setConfirm(false)}>Cancel</button>
-                    <button className="btn btn-primary" onClick={doPost}>✓ Confirm & Post</button>
+                    <button className="btn btn-primary" onClick={doPost}>Confirm & Post</button>
                   </div>
                 </div>
               )}
@@ -631,7 +632,7 @@ function StatementOfEquity({ data }) {
         <ReportHeader title="Statement of Changes in Owner's Equity" />
         <div className="card">
           <div className="empty">
-            <div className="empty-icon">💼</div>
+            <div className="empty-icon"><Scale size={32} /></div>
             <p>No equity accounts found. Add equity accounts to your Chart of Accounts.</p>
           </div>
         </div>
@@ -645,7 +646,7 @@ function StatementOfEquity({ data }) {
 
       {!closingPosted && netIncome !== 0 && (
         <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 14px', marginBottom: 18, fontSize: 12.5, color: '#92400e' }}>
-          ⚠️ Closing entries for FY {currentYear} have not been posted. Net income of <strong>{fmt(Math.abs(netIncome))}</strong> is shown separately. Use the <strong>Closing Entries</strong> tab to transfer it to Retained Earnings.
+          Closing entries for FY {currentYear} have not been posted. Net income of <strong>{fmt(Math.abs(netIncome))}</strong> is shown separately. Use the <strong>Closing Entries</strong> tab to transfer it to Retained Earnings.
         </div>
       )}
 
@@ -675,7 +676,7 @@ function StatementOfEquity({ data }) {
               )}
               {!closingPosted && netIncome !== 0 && (
                 <tr className="report-row report-group">
-                  <td style={{ paddingLeft: 28, fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                  <td style={{ paddingLeft: 28, fontStyle: 'italic', color: 'var(--muted)' }}>
                     Add: Net {netIncome >= 0 ? 'Income' : 'Loss'} for FY {currentYear} (not yet closed)
                   </td>
                   <td className={`text-right ${netIncome >= 0 ? 'amount-pos' : 'amount-neg'}`}>{fmt(netIncome)}</td>
@@ -691,7 +692,7 @@ function StatementOfEquity({ data }) {
         </div>
         {closingPosted && (
           <div style={{ marginTop: 12, fontSize: 12, color: '#166534' }}>
-            ✅ Closing entries for FY {currentYear} have been posted — net income is included in Retained Earnings.
+            Closing entries for FY {currentYear} have been posted — net income is included in Retained Earnings.
           </div>
         )}
       </div>
@@ -718,7 +719,7 @@ function NotesToFinancial({ data, saveFinancialNotes }) {
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <ReportHeader title="Notes to Financial Statements" />
       <div className="card">
-        <div style={{ marginBottom: 14, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        <div style={{ marginBottom: 14, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
           Add disclosures, accounting policies, significant events, contingencies, and other notes to accompany your financial statements. These notes will appear when printing this page.
         </div>
         <textarea
@@ -740,11 +741,11 @@ function NotesToFinancial({ data, saveFinancialNotes }) {
           }
         />
         <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, color: saved ? '#166534' : dirty ? 'var(--text-muted)' : 'transparent' }}>
-            {saved ? '✅ Notes saved.' : dirty ? 'Unsaved changes — click Save to persist.' : '.'}
+          <span style={{ fontSize: 13, color: saved ? '#166534' : dirty ? 'var(--muted)' : 'transparent' }}>
+            {saved ? 'Notes saved.' : dirty ? 'Unsaved changes — click Save to persist.' : ''}
           </span>
           <button className="btn btn-primary" onClick={handleSave}>
-            💾 Save Notes
+            Save Notes
           </button>
         </div>
       </div>

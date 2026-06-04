@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { X } from 'lucide-react'
 
 export default function Modal({ open, onClose, title, children, footer, size = '' }) {
   useEffect(() => {
@@ -15,7 +16,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
       <div className={`modal ${size}`}>
         <div className="modal-header">
           <span>{title}</span>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><X size={16} strokeWidth={2} /></button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}

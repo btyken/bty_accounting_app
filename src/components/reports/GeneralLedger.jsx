@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { useApp } from '../../store/AppContext'
 import { fmt, today, typeBadge } from '../../utils/format'
+import { BookMarked } from 'lucide-react'
 
 function getDefaultDates() {
   const end = today()
@@ -205,7 +206,7 @@ export default function GeneralLedger() {
       {ledgers.length === 0 && (
         <div className="card">
           <div className="empty">
-            <div className="empty-icon">📒</div>
+            <div className="empty-icon"><BookMarked size={32} /></div>
             <p>No ledger entries found for the selected period.</p>
           </div>
         </div>
@@ -231,7 +232,7 @@ export default function GeneralLedger() {
               <div className="text-muted text-sm">Closing Balance</div>
               <div style={{
                 fontSize: 22, fontWeight: 700,
-                color: closingBalance < 0 ? 'var(--red)' : 'var(--text)',
+                color: closingBalance < 0 ? 'var(--neg)' : 'var(--text)',
               }}>
                 {fmt(closingBalance)}
               </div>
@@ -255,7 +256,7 @@ export default function GeneralLedger() {
               <tbody>
                 <tr style={{ background: '#f3f4f6' }}>
                   <td className="text-muted text-sm">{startDate}</td>
-                  <td colSpan={6} style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  <td colSpan={6} style={{ color: 'var(--muted)', fontStyle: 'italic' }}>
                     Opening Balance
                   </td>
                   <td className="text-right font-bold">{fmt(openingBalance)}</td>
@@ -263,7 +264,7 @@ export default function GeneralLedger() {
 
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 18 }}>
+                    <td colSpan={8} style={{ textAlign: 'center', color: 'var(--muted)', padding: 18 }}>
                       No transactions in this period.
                     </td>
                   </tr>
@@ -284,9 +285,9 @@ export default function GeneralLedger() {
                   </tr>
                 ))}
 
-                <tr style={{ background: 'var(--green-light)', fontWeight: 700 }}>
+                <tr style={{ background: 'var(--gold-soft)', fontWeight: 700 }}>
                   <td className="text-muted text-sm">{endDate}</td>
-                  <td colSpan={6} style={{ textAlign: 'right', paddingRight: 14, color: 'var(--text-muted)' }}>
+                  <td colSpan={6} style={{ textAlign: 'right', paddingRight: 14, color: 'var(--muted)' }}>
                     Closing Balance
                   </td>
                   <td className="text-right">{fmt(closingBalance)}</td>

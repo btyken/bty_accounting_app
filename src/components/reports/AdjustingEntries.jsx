@@ -3,6 +3,7 @@ import { useApp } from '../../store/AppContext'
 import { fmt, today, uid, pad } from '../../utils/format'
 import { DEPARTMENTS } from '../../data/defaults'
 import Modal from '../ui/Modal'
+import { Edit3, X } from 'lucide-react'
 
 const AJE_TYPES = [
   'Accrued Revenue',
@@ -106,7 +107,7 @@ export default function AdjustingEntries() {
       <div className="card">
         {adjustingEntries.length === 0 ? (
           <div className="empty">
-            <div className="empty-icon">✏️</div>
+            <div className="empty-icon"><Edit3 size={32} /></div>
             <p>No adjusting entries posted yet.</p>
             <button className="btn btn-primary" onClick={openNew}>+ New Adjusting Entry</button>
           </div>
@@ -161,7 +162,7 @@ export default function AdjustingEntries() {
           </>
         }
       >
-        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
 
         <div className="grid-3">
           <div className="form-group">
@@ -210,16 +211,16 @@ export default function AdjustingEntries() {
                 <td>{renderAccountSelect(entry)}</td>
                 <td><input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={entry.debit} onChange={e => updateEntry(entry.id, 'debit', e.target.value)} /></td>
                 <td><input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={entry.credit} onChange={e => updateEntry(entry.id, 'credit', e.target.value)} /></td>
-                <td><button className="del-btn" onClick={() => removeEntry(entry.id)}>✕</button></td>
+                <td><button className="del-btn" onClick={() => removeEntry(entry.id)}><X size={13} /></button></td>
               </tr>
             ))}
           </tbody>
         </table>
         <button className="btn btn-secondary btn-sm" onClick={addEntry}>+ Add Line</button>
 
-        <div style={{ marginTop: 12, fontSize: 13, padding: '8px 12px', borderRadius: 6, background: balanced ? 'var(--green-light)' : '#fee2e2' }}>
+        <div style={{ marginTop: 12, fontSize: 13, padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: balanced ? 'var(--pos-bg)' : 'var(--neg-bg)', color: balanced ? 'var(--pos)' : 'var(--neg)' }}>
           Debits: <strong>{fmt(totalDebit)}</strong> &nbsp;|&nbsp; Credits: <strong>{fmt(totalCredit)}</strong>
-          &nbsp; {balanced ? '✅ Balanced' : '⚠️ Not balanced'}
+          &nbsp; {balanced ? 'Balanced' : 'Not balanced'}
         </div>
       </Modal>
     </div>

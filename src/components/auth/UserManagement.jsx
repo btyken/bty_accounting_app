@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../store/AuthContext'
 import Modal from '../ui/Modal'
+import { Eye, EyeOff, ShieldCheck, User, KeyRound } from 'lucide-react'
 
 const BLANK = { username: '', password: '', role: 'user' }
 
@@ -45,7 +46,7 @@ export default function UserManagement() {
     return (
       <div className="card" style={{ maxWidth: 500 }}>
         <div className="empty">
-          <div className="empty-icon">🔒</div>
+          <div className="empty-icon"><ShieldCheck size={32} /></div>
           <p>Only admins can manage users.</p>
         </div>
       </div>
@@ -56,7 +57,7 @@ export default function UserManagement() {
     <div>
       {success && (
         <div style={{ background: '#f0f0f0', border: '1px solid #d1d5db', borderRadius: 8, padding: '10px 16px', marginBottom: 18, color: '#374151', fontWeight: 500, fontSize: 13 }}>
-          ✅ {success}
+          {success}
         </div>
       )}
 
@@ -86,7 +87,7 @@ export default function UserManagement() {
                   </td>
                   <td>
                     <span className={`badge ${user.role === 'admin' ? 'badge-blue' : 'badge-gray'}`}>
-                      {user.role === 'admin' ? '🛡 Admin' : '👤 User'}
+                      {user.role === 'admin' ? <><ShieldCheck size={11} /> Admin</> : <><User size={11} /> Member</>}
                     </span>
                   </td>
                   <td className="text-muted text-sm">
@@ -97,7 +98,7 @@ export default function UserManagement() {
                       className="btn btn-secondary btn-sm"
                       onClick={() => { setNewPw(''); setErr(''); setShowPw(false); setPwModal(user.id) }}
                     >
-                      🔑 Change Password
+                      <KeyRound size={12} /> Change Password
                     </button>{' '}
                     {user.username !== currentUser?.username && (
                       <button className="btn btn-danger btn-sm" onClick={() => handleDelete(user)}>Delete</button>
@@ -123,7 +124,7 @@ export default function UserManagement() {
           </>
         }
       >
-        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
         <div className="form-group">
           <label className="form-label">Username</label>
           <input className="form-input" value={form.username} onChange={e => setField('username', e.target.value)} placeholder="e.g. juan.dela.cruz" autoFocus />
@@ -135,8 +136,8 @@ export default function UserManagement() {
         <div className="form-group">
           <label className="form-label">Role</label>
           <select className="form-select" value={form.role} onChange={e => setField('role', e.target.value)}>
-            <option value="user">👤 User — can view and edit records</option>
-            <option value="admin">🛡 Admin — can also manage users</option>
+            <option value="user">User — can view and edit records</option>
+            <option value="admin">Admin — can also manage users</option>
           </select>
         </div>
       </Modal>
@@ -154,7 +155,7 @@ export default function UserManagement() {
           </>
         }
       >
-        {err && <div className="form-error" style={{ marginBottom: 12 }}>⚠️ {err}</div>}
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
         <div className="form-group">
           <label className="form-label">New Password</label>
           <div style={{ position: 'relative' }}>
@@ -169,7 +170,7 @@ export default function UserManagement() {
             />
             <button type="button" onClick={() => setShowPw(v => !v)}
               style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-              {showPw ? '🙈' : '👁️'}
+              {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
         </div>

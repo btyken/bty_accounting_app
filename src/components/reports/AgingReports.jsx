@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useApp } from '../../store/AppContext'
 import { fmt } from '../../utils/format'
+import { CheckCircle2, ClipboardList } from 'lucide-react'
 
 const BUCKETS = [
   { id: 'current', label: 'Current (Not Yet Due)' },
@@ -46,7 +47,7 @@ function ARaging({ data }) {
     return (
       <div className="card">
         <div className="empty">
-          <div className="empty-icon">✅</div>
+          <div className="empty-icon"><CheckCircle2 size={32} /></div>
           <p>No outstanding receivables — all invoices are paid!</p>
         </div>
       </div>
@@ -107,7 +108,7 @@ function ARaging({ data }) {
                         <td className="text-muted">{inv.number}</td>
                         <td className="text-muted">{inv.date}</td>
                         <td className="text-muted">{inv.dueDate || '—'}</td>
-                        <td style={{ color: inv.days > 0 ? 'var(--red)' : '#166534', fontWeight: 600 }}>
+                        <td style={{ color: inv.days > 0 ? 'var(--neg)' : '#166534', fontWeight: 600 }}>
                           {inv.days > 0 ? `${inv.days} days` : inv.days === 0 ? 'Due today' : 'Not yet due'}
                         </td>
                         <td>
@@ -121,7 +122,7 @@ function ARaging({ data }) {
                     ))
                   }
                   <tr style={{ background: '#f9fafb' }}>
-                    <td colSpan={6} style={{ fontWeight: 700, paddingLeft: 28, color: 'var(--text-muted)', fontSize: 12 }}>
+                    <td colSpan={6} style={{ fontWeight: 700, paddingLeft: 28, color: 'var(--muted)', fontSize: 12 }}>
                       Subtotal — {customer}
                     </td>
                     <td className="text-right" style={{ fontWeight: 700 }}>{fmt(cdata.total)}</td>
@@ -192,7 +193,7 @@ function APaging({ data }) {
     return (
       <div className="card">
         <div className="empty">
-          <div className="empty-icon">📋</div>
+          <div className="empty-icon"><ClipboardList size={32} /></div>
           <p>No liability accounts found in the Chart of Accounts.</p>
         </div>
       </div>
@@ -250,7 +251,7 @@ function APaging({ data }) {
       {payables.length === 0 ? (
         <div className="card">
           <div className="empty">
-            <div className="empty-icon">📋</div>
+            <div className="empty-icon"><ClipboardList size={32} /></div>
             <p>No payable transactions found in journal entries.<br />Post journal entries that credit liability accounts to see AP aging.</p>
           </div>
         </div>
@@ -284,7 +285,7 @@ function APaging({ data }) {
                       <td><strong>{e.ref}</strong></td>
                       <td>{e.description}</td>
                       <td><span className="badge badge-red">{apAccName(e.accountId)}</span></td>
-                      <td style={{ color: e.daysOld > 60 ? 'var(--red)' : 'var(--text-muted)', fontWeight: e.daysOld > 60 ? 700 : 400 }}>
+                      <td style={{ color: e.daysOld > 60 ? 'var(--neg)' : 'var(--muted)', fontWeight: e.daysOld > 60 ? 700 : 400 }}>
                         {e.daysOld} days
                       </td>
                       <td className="text-right amount-neg"><strong>{fmt(e.amount)}</strong></td>

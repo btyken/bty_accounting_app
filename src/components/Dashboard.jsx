@@ -1,6 +1,7 @@
 import React from 'react'
 import { useApp } from '../store/AppContext'
 import { fmt, getLast6Months, statusBadge } from '../utils/format'
+import { FileText, CreditCard, TrendingUp, Scale, CheckCircle2 } from 'lucide-react'
 
 export default function Dashboard({ onNavigate }) {
   const { data, accName } = useApp()
@@ -75,8 +76,8 @@ export default function Dashboard({ onNavigate }) {
             ))}
           </div>
           <div className="legend">
-            <div className="legend-item"><div className="legend-dot" style={{ background: 'var(--green)' }} /> Income</div>
-            <div className="legend-item"><div className="legend-dot" style={{ background: '#f87171' }} /> Expenses</div>
+            <div className="legend-item"><div className="legend-dot" style={{ background: 'var(--ink)' }} /> Income</div>
+            <div className="legend-item"><div className="legend-dot" style={{ background: '#d4d4d0' }} /> Expenses</div>
           </div>
         </div>
 
@@ -84,7 +85,7 @@ export default function Dashboard({ onNavigate }) {
         <div className="card">
           <div className="section-header">Outstanding Invoices</div>
           {unpaidInvoices.length === 0
-            ? <div className="empty"><div className="empty-icon">✅</div><p>All invoices paid!</p></div>
+            ? <div className="empty"><div className="empty-icon"><CheckCircle2 size={32} /></div><p>All invoices paid!</p></div>
             : (
               <div className="table-wrap">
                 <table>
@@ -104,7 +105,7 @@ export default function Dashboard({ onNavigate }) {
             )
           }
           <div style={{ marginTop: 12, textAlign: 'right' }}>
-            <strong>Outstanding: <span style={{ color: 'var(--yellow)' }}>{fmt(outstanding)}</span></strong>
+            <strong>Outstanding: <span style={{ color: 'var(--warn)' }}>{fmt(outstanding)}</span></strong>
           </div>
         </div>
       </div>
@@ -114,7 +115,7 @@ export default function Dashboard({ onNavigate }) {
         <div className="card">
           <div className="section-header">Recent Expenses</div>
           {recentExpenses.length === 0
-            ? <div className="empty"><div className="empty-icon">💳</div><p>No expenses yet</p></div>
+            ? <div className="empty"><div className="empty-icon"><CreditCard size={32} /></div><p>No expenses yet</p></div>
             : (
               <div className="table-wrap">
                 <table>
@@ -139,10 +140,10 @@ export default function Dashboard({ onNavigate }) {
         <div className="card">
           <div className="section-header">Quick Actions</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8 }}>
-            <button className="btn btn-primary w-full" onClick={() => onNavigate('invoices')}>🧾 Create New Invoice</button>
-            <button className="btn btn-secondary w-full" onClick={() => onNavigate('expenses')}>💳 Record Expense</button>
-            <button className="btn btn-secondary w-full" onClick={() => onNavigate('pl')}>📈 View P&amp;L Report</button>
-            <button className="btn btn-secondary w-full" onClick={() => onNavigate('balance')}>⚖️ View Balance Sheet</button>
+            <button className="btn btn-primary w-full" onClick={() => onNavigate('invoices')}><FileText size={14} /> Create New Invoice</button>
+            <button className="btn btn-secondary w-full" onClick={() => onNavigate('expenses')}><CreditCard size={14} /> Record Expense</button>
+            <button className="btn btn-secondary w-full" onClick={() => onNavigate('pl')}><TrendingUp size={14} /> View P&amp;L Report</button>
+            <button className="btn btn-secondary w-full" onClick={() => onNavigate('balance')}><Scale size={14} /> View Balance Sheet</button>
           </div>
         </div>
       </div>

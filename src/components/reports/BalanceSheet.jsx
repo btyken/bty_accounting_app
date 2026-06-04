@@ -9,11 +9,11 @@ const COLORS = [
   '#3730a3', '#6b21a8',
 ]
 
-function Section({ title, icon, accounts, extras = [] }) {
+function Section({ title, accounts, extras = [] }) {
   const total = accounts.reduce((s, a) => s + a.balance, 0) + extras.reduce((s, r) => s + r.val, 0)
   return (
     <>
-      <tr><td colSpan={2}><div className="report-section-title">{icon} {title}</div></td></tr>
+      <tr><td colSpan={2}><div className="report-section-title">{title}</div></td></tr>
       {accounts.map(a => (
         <tr key={a.id} className="report-row report-group">
           <td>{a.code} — {a.name}</td>
@@ -64,7 +64,7 @@ export default function BalanceSheet() {
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Report</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Report</div>
         <h2 style={{ fontSize: 22, margin: '4px 0' }}>Balance Sheet</h2>
         <div className="text-muted text-sm">
           As of {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -76,7 +76,7 @@ export default function BalanceSheet() {
         <div className="grid-2" style={{ marginBottom: 20 }}>
           {assetSlices.length > 0 && (
             <div className="card">
-              <div className="section-header">🏦 Assets Breakdown</div>
+              <div className="section-header">Assets Breakdown</div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <PieChart slices={assetSlices} />
                 <div style={{ marginTop: 10, width: '100%' }}>
@@ -93,7 +93,7 @@ export default function BalanceSheet() {
           )}
           {liabSlices.length > 0 && (
             <div className="card">
-              <div className="section-header">📋 Liabilities Breakdown</div>
+              <div className="section-header">Liabilities Breakdown</div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <PieChart slices={liabSlices} />
                 <div style={{ marginTop: 10, width: '100%' }}>
@@ -115,11 +115,11 @@ export default function BalanceSheet() {
       <div className="table-wrap">
         <table>
           <tbody>
-            <Section title="Assets"      icon="🏦" accounts={assets} />
-            <Section title="Liabilities" icon="📋" accounts={liabilities} />
+            <Section title="Assets"       accounts={assets} />
+            <Section title="Liabilities"  accounts={liabilities} />
             <Section
               title="Equity"
-              icon="💼"
+              
               accounts={equities}
               extras={netIncome !== 0 ? [{ name: 'Net Income (Current Period)', val: netIncome }] : []}
             />
@@ -130,7 +130,7 @@ export default function BalanceSheet() {
             </tr>
             <tr>
               <td className="text-muted text-sm" style={{ paddingTop: 6 }}>
-                {balanced ? '✅ Balance sheet balances' : '⚠️ Out of balance — check your entries'}
+                {balanced ? 'Balance sheet balances' : 'Out of balance — check your entries'}
               </td>
               <td />
             </tr>

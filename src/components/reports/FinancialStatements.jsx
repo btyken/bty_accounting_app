@@ -3,10 +3,12 @@ import { useApp } from '../../store/AppContext'
 import { fmt, today, uid } from '../../utils/format'
 
 const TABS = [
-  { id: 'income',   label: 'Income Statement'   },
-  { id: 'balance',  label: 'Balance Sheet'       },
-  { id: 'cashflow', label: 'Cash Flow Statement' },
-  { id: 'closing',  label: 'Closing Entries'     },
+  { id: 'income',   label: 'Income Statement'        },
+  { id: 'balance',  label: 'Balance Sheet'            },
+  { id: 'cashflow', label: 'Cash Flow Statement'      },
+  { id: 'equity',   label: 'Statement of Equity'      },
+  { id: 'notes',    label: 'Notes to Financial'       },
+  { id: 'closing',  label: 'Closing Entries'          },
 ]
 
 function ReportHeader({ title, subtitle }) {
@@ -605,9 +607,154 @@ function ClosingEntries({ data, addTransaction }) {
   )
 }
 
+// ── Statement of Equity ───────────────────────────────────────────
+function StatementOfEquity({ data }) {
+  const equityAccs   = data.accounts.filter(a => a.type === 'Equity')
+  const revenueTotal = data.accounts.filter(a => a.type === 'Revenue').reduce((s, a) => s + a.balance, 0)
+  const expenseTotal = data.accounts.filter(a => a.type === 'Expense').reduce((s, a) => s + a.balance, 0)
+  const netIncome    = revenueTotal - expenseTotal
+
+  const currentYear   = new Date().getFullYear()
+  const closingPosted = (data.transactions || []).some(t => t.ref === `CLOSE-${currentYear}`)
+
+  const retainedEarnings = equityAccs.find(a =>
+    a.name?.toLowerCase().includes('retained') || a.code === '3100'
+  )
+  const otherEquity = equityAccs.filter(a => a.id !== retainedEarnings?.id)
+
+  const postedEquity = equityAccs.reduce((s, a) => s + a.balance, 0)
+  const totalEquity  = closingPosted ? postedEquity : postedEquity + netIncome
+
+  if (equityAccs.length === 0) {
+    return (
+      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <ReportHeader title="Statement of Changes in Owner's Equity" />
+        <div className="card">
+          <div className="empty">
+            <div className="empty-icon">💼</div>
+            <p>No equity accounts found. Add equity accounts to your Chart of Accounts.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <ReportHeader title="Statement of Changes in Owner's Equity" />
+
+      {!closingPosted && netIncome !== 0 && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '10px 14px', marginBottom: 18, fontSize: 12.5, color: '#92400e' }}>
+          ⚠️ Closing entries for FY {currentYear} have not been posted. Net income of <strong>{fmt(Math.abs(netIncome))}</strong> is shown separately. Use the <strong>Closing Entries</strong> tab to transfer it to Retained Earnings.
+        </div>
+      )}
+
+      <div className="card">
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th className="text-right">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {otherEquity.map(a => (
+                <tr key={a.id} className="report-row report-group">
+                  <td>{a.code} — {a.name}</td>
+                  <td className={`text-right ${a.balance >= 0 ? 'amount-pos' : 'amount-neg'}`}>{fmt(a.balance)}</td>
+                </tr>
+              ))}
+              {retainedEarnings && (
+                <tr className="report-row report-group">
+                  <td>{retainedEarnings.code} — {retainedEarnings.name}</td>
+                  <td className={`text-right ${retainedEarnings.balance >= 0 ? 'amount-pos' : 'amount-neg'}`}>
+                    {fmt(retainedEarnings.balance)}
+                  </td>
+                </tr>
+              )}
+              {!closingPosted && netIncome !== 0 && (
+                <tr className="report-row report-group">
+                  <td style={{ paddingLeft: 28, fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                    Add: Net {netIncome >= 0 ? 'Income' : 'Loss'} for FY {currentYear} (not yet closed)
+                  </td>
+                  <td className={`text-right ${netIncome >= 0 ? 'amount-pos' : 'amount-neg'}`}>{fmt(netIncome)}</td>
+                </tr>
+              )}
+              <tr><td colSpan={2} style={{ height: 12 }} /></tr>
+              <tr className="report-total">
+                <td>TOTAL OWNER'S EQUITY</td>
+                <td className={`text-right ${totalEquity >= 0 ? 'amount-pos' : 'amount-neg'}`}>{fmt(totalEquity)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {closingPosted && (
+          <div style={{ marginTop: 12, fontSize: 12, color: '#166534' }}>
+            ✅ Closing entries for FY {currentYear} have been posted — net income is included in Retained Earnings.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Notes to Financial Statements ─────────────────────────────────
+function NotesToFinancial({ data, saveFinancialNotes }) {
+  const [text,  setText]  = useState(data.financialNotes || '')
+  const [dirty, setDirty] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const handleChange = (e) => { setText(e.target.value); setDirty(true); setSaved(false) }
+
+  const handleSave = () => {
+    saveFinancialNotes(text)
+    setDirty(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  return (
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      <ReportHeader title="Notes to Financial Statements" />
+      <div className="card">
+        <div style={{ marginBottom: 14, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+          Add disclosures, accounting policies, significant events, contingencies, and other notes to accompany your financial statements. These notes will appear when printing this page.
+        </div>
+        <textarea
+          value={text}
+          onChange={handleChange}
+          style={{
+            width: '100%', minHeight: 480, padding: '14px 16px',
+            border: '1px solid var(--border)', borderRadius: 6,
+            fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.7,
+          }}
+          placeholder={
+            '1. BASIS OF ACCOUNTING\n' +
+            'The financial statements are prepared on the accrual basis of accounting.\n\n' +
+            '2. SUMMARY OF SIGNIFICANT ACCOUNTING POLICIES\n\n' +
+            '3. CASH AND CASH EQUIVALENTS\n\n' +
+            '4. REVENUE RECOGNITION\n\n' +
+            '5. RELATED PARTY TRANSACTIONS\n\n' +
+            '6. SUBSEQUENT EVENTS\n'
+          }
+        />
+        <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: saved ? '#166534' : dirty ? 'var(--text-muted)' : 'transparent' }}>
+            {saved ? '✅ Notes saved.' : dirty ? 'Unsaved changes — click Save to persist.' : '.'}
+          </span>
+          <button className="btn btn-primary" onClick={handleSave}>
+            💾 Save Notes
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Component ────────────────────────────────────────────────
 export default function FinancialStatements() {
-  const { data, addTransaction } = useApp()
+  const { data, addTransaction, saveFinancialNotes } = useApp()
   const [tab, setTab] = useState('income')
 
   return (
@@ -623,6 +770,8 @@ export default function FinancialStatements() {
       {tab === 'income'   && <IncomeStatement    data={data} />}
       {tab === 'balance'  && <BalanceSheetView   data={data} />}
       {tab === 'cashflow' && <CashFlowStatement  data={data} />}
+      {tab === 'equity'   && <StatementOfEquity  data={data} />}
+      {tab === 'notes'    && <NotesToFinancial   data={data} saveFinancialNotes={saveFinancialNotes} />}
       {tab === 'closing'  && <ClosingEntries     data={data} addTransaction={addTransaction} />}
     </div>
   )

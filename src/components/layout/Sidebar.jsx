@@ -8,26 +8,28 @@ const NAV = [
     section: 'Accounting',
     items: [
       { id: 'accounts',     icon: '📒', label: 'Chart of Accounts' },
-      { id: 'transactions', icon: '↕️', label: 'Transactions' },
+      { id: 'transactions', icon: '↕️', label: 'Journal Entry' },
+      { id: 'adjusting',   icon: '✏️', label: 'Adjusting Entries' },
     ],
   },
   {
     section: 'Money In / Out',
     items: [
-      { id: 'invoices',   icon: '🧾', label: 'Invoices' },
-      { id: 'expenses',   icon: '💳', label: 'Expenses' },
-      { id: 'pettycash',  icon: '💵', label: 'Petty Cash' },
+      { id: 'invoices',  icon: '🧾', label: 'Invoices' },
+      { id: 'expenses',  icon: '💳', label: 'Expenses' },
+      { id: 'pettycash', icon: '💵', label: 'Petty Cash' },
     ],
   },
   {
     section: 'Reports',
     items: [
+      { id: 'trialbalance', icon: '🔢', label: 'Trial Balance' },
+      { id: 'gl',           icon: '📒', label: 'General Ledger' },
       { id: 'financial',    icon: '📑', label: 'Financial Statements' },
       { id: 'pl',           icon: '📈', label: 'Profit & Loss' },
       { id: 'balance',      icon: '⚖️', label: 'Balance Sheet' },
       { id: 'expreport',    icon: '📋', label: 'Expense Report' },
-      { id: 'gl',           icon: '📒', label: 'General Ledger' },
-      { id: 'trialbalance', icon: '🔢', label: 'Trial Balance' },
+      { id: 'aging',        icon: '📅', label: 'Aging Reports' },
     ],
   },
 ]

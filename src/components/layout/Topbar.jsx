@@ -3,7 +3,8 @@ import React from 'react'
 const TITLES = {
   dashboard:    'Dashboard',
   accounts:     'Chart of Accounts',
-  transactions: 'Transactions',
+  transactions: 'Journal Entry',
+  adjusting:    'Adjusting Entries',
   invoices:     'Invoices',
   expenses:     'Expenses',
   pl:           'Profit & Loss',
@@ -13,6 +14,7 @@ const TITLES = {
   financial:    'Financial Statements',
   gl:           'General Ledger',
   trialbalance: 'Trial Balance',
+  aging:        'Aging Reports',
   users:        'User Management',
 }
 

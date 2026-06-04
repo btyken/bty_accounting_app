@@ -34,9 +34,10 @@ export function AppProvider({ children }) {
     const unsub = onSnapshot(APP_DOC, (snap) => {
       if (snap.exists()) {
         const d = snap.data()
-        // Migrate: add pettyCash array if missing from older data
-        const migrated = d.pettyCash ? d : { pettyCash: [], ...d }
-        if (!d.pettyCash) setDoc(APP_DOC, migrated)
+        // Migrate: add missing fields from older data
+        const needsMigration = !d.pettyCash || !('financialNotes' in d)
+        const migrated = { financialNotes: '', pettyCash: [], ...d }
+        if (needsMigration) setDoc(APP_DOC, migrated)
         setData(migrated)
         localStorage.setItem(CACHE_KEY, JSON.stringify(migrated))
       } else {
@@ -318,6 +319,10 @@ export function AppProvider({ children }) {
     persist({ ...data, pettyCash: [] })
   }, [data, persist])
 
+  const saveFinancialNotes = useCallback((notes) => {
+    persist({ ...data, financialNotes: notes })
+  }, [data, persist])
+
   const accName = useCallback((id) =>
     (data?.accounts.find(a => a.id === id) || {}).name || '—', [data])
 
@@ -331,6 +336,7 @@ export function AppProvider({ children }) {
       addExpense, updateExpenseMeta, deleteExpense, importExpenses, nextExpNum,
       addTransaction, updateTransactionMeta, deleteTransaction, importTransactions,
       addPettyCash, deletePettyCash, nextPCNum,
+      saveFinancialNotes,
       clearAccounts, clearInvoices, clearExpenses, clearTransactions, clearPettyCash,
     }}>
       {children}

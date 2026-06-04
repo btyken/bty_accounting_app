@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { fmt, today, uid, statusBadge } from '../utils/format'
@@ -43,6 +43,26 @@ export default function Invoices() {
   const [form, setForm]         = useState(() => newForm('INV-0001'))
   const [err, setErr]           = useState('')
   const [viewInv, setViewInv]   = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
+
+  const customerHistory = useMemo(() => {
+    const seen = new Map()
+    ;[...data.invoices].reverse().forEach(inv => {
+      if (!inv.customer) return
+      const key = inv.customer.toLowerCase()
+      if (!seen.has(key)) {
+        seen.set(key, {
+          customer:      inv.customer,
+          billToAddress: inv.billToAddress || '',
+          shipToName:    inv.shipToName    || '',
+          shipToAddress: inv.shipToAddress || '',
+          customerNo:    inv.customerNo    || '',
+          terms:         inv.terms         || '',
+        })
+      }
+    })
+    return [...seen.values()]
+  }, [data.invoices])
 
   const openNew = () => { setForm(newForm(nextInvoiceNum())); setErr(''); setModal(true) }
 
@@ -206,7 +226,51 @@ export default function Invoices() {
           <div>
             <div className="form-group" style={{ marginBottom: 8 }}>
               <label className="form-label">Bill To Name *</label>
-              <input className="form-input" value={form.customer} onChange={e => setField('customer', e.target.value)} placeholder="Customer / Company" />
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="form-input"
+                  value={form.customer}
+                  onChange={e => { setField('customer', e.target.value); setShowHistory(true) }}
+                  onFocus={() => setShowHistory(true)}
+                  onBlur={() => setTimeout(() => setShowHistory(false), 150)}
+                  placeholder="Customer / Company"
+                />
+                {showHistory && (() => {
+                  const matches = customerHistory.filter(c =>
+                    !form.customer.trim() || c.customer.toLowerCase().includes(form.customer.toLowerCase())
+                  )
+                  return matches.length > 0 ? (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200,
+                      background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6,
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.12)', maxHeight: 220, overflowY: 'auto',
+                    }}>
+                      <div style={{ padding: '6px 12px 4px', fontSize: 11, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6' }}>
+                        Recent Customers
+                      </div>
+                      {matches.map(c => (
+                        <div
+                          key={c.customer}
+                          onMouseDown={() => {
+                            setForm(f => ({ ...f, ...c }))
+                            setShowHistory(false)
+                          }}
+                          style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9fafb' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
+                          onMouseLeave={e => e.currentTarget.style.background = ''}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{c.customer}</div>
+                          {c.billToAddress && (
+                            <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
+                              {c.billToAddress.split('\n')[0]}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null
+                })()}
+              </div>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Bill To Address</label>

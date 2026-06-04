@@ -206,18 +206,22 @@ tr:hover td { background: #faf8f3; }
   /* Hide chrome */
   .sidebar, .topbar { display: none !important; }
 
-  /* Hide interactive controls inside report pages */
+  /* Hide interactive controls and navigation */
   .btn, button, select, input,
-  .tabs, .import-zone, .modal-overlay,
+  .tabs, .tab, .import-zone, .modal-overlay,
   .period-controls { display: none !important; }
 
-  /* Cards flush to page */
-  .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+  /* Cards: strip decoration but let content flow across pages naturally —
+     break-inside: avoid would eject a tall card to a new page, causing blank gaps */
+  .card { box-shadow: none; border: 1px solid #ddd; break-inside: auto; }
 
-  /* Tables should not clip */
+  /* Keep report section headers with at least one following row */
+  .report-section-title { break-after: avoid; }
+
+  /* Tables flow across pages; keep each row intact */
   .table-wrap { overflow: visible; }
   table { page-break-inside: auto; }
-  tr { page-break-inside: avoid; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
 
   /* Ensure colours print */
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

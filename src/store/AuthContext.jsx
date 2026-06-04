@@ -2,6 +2,17 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { collection, doc, setDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 
+export const REPORT_OPTIONS = [
+  { id: 'trialbalance', label: 'Trial Balance' },
+  { id: 'gl',           label: 'General Ledger' },
+  { id: 'financial',    label: 'Financial Statements' },
+  { id: 'pl',           label: 'Profit & Loss' },
+  { id: 'balance',      label: 'Balance Sheet' },
+  { id: 'expreport',    label: 'Expense Report' },
+  { id: 'aging',        label: 'Aging Reports' },
+]
+const ALL_REPORT_IDS = REPORT_OPTIONS.map(r => r.id)
+
 async function hashPassword(password) {
   const encoder = new TextEncoder()
   const data = encoder.encode(password + 'qb-salt-2024')
@@ -123,11 +134,27 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const updateUserReportAccess = async (userId, reportIds) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), { reportAccess: reportIds })
+      return { success: true }
+    } catch (e) {
+      return { error: e.message || 'Failed to update report access.' }
+    }
+  }
+
+  const isAdmin = currentUser?.role === 'admin'
+  // When users haven't loaded yet, default to full access to avoid flicker on page load
+  const reportAccess = isAdmin || users === null
+    ? ALL_REPORT_IDS
+    : (users.find(u => u.id === currentUser?.id)?.reportAccess ?? [])
+
   return (
     <AuthContext.Provider value={{
       users, currentUser, loginError, setLoginError,
       login, logout, addUser, deleteUser, changePassword,
-      isAdmin: currentUser?.role === 'admin',
+      updateUserReportAccess, reportAccess,
+      isAdmin,
     }}>
       {children}
     </AuthContext.Provider>

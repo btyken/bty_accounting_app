@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Printer } from 'lucide-react'
+import { Printer, Lock } from 'lucide-react'
 import { AppProvider, useApp } from './store/AppContext'
 import { AuthProvider, useAuth } from './store/AuthContext'
 import Sidebar from './components/layout/Sidebar'
@@ -21,10 +21,25 @@ import AdjustingEntries from './components/reports/AdjustingEntries'
 import AgingReports from './components/reports/AgingReports'
 import PettyCash from './components/PettyCash'
 
-const PRINT_PAGES = ['pl', 'balance', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
+const PRINT_PAGES  = ['pl', 'balance', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
+const REPORT_PAGES = ['pl', 'balance', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
+
+function AccessRestricted() {
+  return (
+    <div className="card" style={{ maxWidth: 480, margin: '40px auto' }}>
+      <div className="empty">
+        <div className="empty-icon"><Lock size={32} /></div>
+        <p style={{ fontWeight: 600 }}>Access Restricted</p>
+        <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>
+          You don't have permission to view this report.<br />Contact your administrator to request access.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function AppInner() {
-  const { currentUser, users } = useAuth()
+  const { currentUser, users, isAdmin, reportAccess } = useAuth()
   const { appReady } = useApp()
   const [page, setPage] = useState('dashboard')
 
@@ -47,6 +62,9 @@ function AppInner() {
     : null
 
   const renderPage = () => {
+    if (!isAdmin && REPORT_PAGES.includes(page) && !reportAccess.includes(page)) {
+      return <AccessRestricted />
+    }
     switch (page) {
       case 'dashboard':    return <Dashboard onNavigate={setPage} />
       case 'accounts':     return <Accounts />

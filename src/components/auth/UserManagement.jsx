@@ -1,19 +1,21 @@
 import React, { useState } from 'react'
-import { useAuth } from '../../store/AuthContext'
+import { useAuth, REPORT_OPTIONS } from '../../store/AuthContext'
 import Modal from '../ui/Modal'
-import { Eye, EyeOff, ShieldCheck, User, KeyRound } from 'lucide-react'
+import { Eye, EyeOff, ShieldCheck, User, KeyRound, FileBarChart2 } from 'lucide-react'
 
 const BLANK = { username: '', password: '', role: 'user' }
 
 export default function UserManagement() {
-  const { users, currentUser, addUser, deleteUser, changePassword, isAdmin } = useAuth()
-  const [modal,    setModal]    = useState(false)
-  const [pwModal,  setPwModal]  = useState(null)  // user id
-  const [form,     setForm]     = useState(BLANK)
-  const [newPw,    setNewPw]    = useState('')
-  const [showPw,   setShowPw]   = useState(false)
-  const [err,      setErr]      = useState('')
-  const [success,  setSuccess]  = useState('')
+  const { users, currentUser, addUser, deleteUser, changePassword, updateUserReportAccess, isAdmin } = useAuth()
+  const [modal,       setModal]       = useState(false)
+  const [pwModal,     setPwModal]     = useState(null)   // user id
+  const [accessModal, setAccessModal] = useState(null)   // user id
+  const [accessForm,  setAccessForm]  = useState([])     // report id array
+  const [form,        setForm]        = useState(BLANK)
+  const [newPw,       setNewPw]       = useState('')
+  const [showPw,      setShowPw]      = useState(false)
+  const [err,         setErr]         = useState('')
+  const [success,     setSuccess]     = useState('')
 
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -39,6 +41,26 @@ export default function UserManagement() {
     if (res.error) return setErr(res.error)
     setSuccess('Password updated.')
     setNewPw(''); setPwModal(null)
+    setTimeout(() => setSuccess(''), 3000)
+  }
+
+  const openAccessModal = (user) => {
+    setAccessForm(user.reportAccess ?? [])
+    setAccessModal(user.id)
+  }
+
+  const toggleReport = (id) => {
+    setAccessForm(prev =>
+      prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
+    )
+  }
+
+  const handleSaveAccess = async () => {
+    const res = await updateUserReportAccess(accessModal, accessForm)
+    if (res.error) return setErr(res.error)
+    const username = users?.find(u => u.id === accessModal)?.username
+    setSuccess(`Report access updated for "${username}".`)
+    setAccessModal(null)
     setTimeout(() => setSuccess(''), 3000)
   }
 
@@ -94,6 +116,17 @@ export default function UserManagement() {
                     {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-PH') : '—'}
                   </td>
                   <td className="text-right" style={{ whiteSpace: 'nowrap' }}>
+                    {user.role !== 'admin' && (
+                      <>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => { setErr(''); openAccessModal(user) }}
+                          title="Manage report access"
+                        >
+                          <FileBarChart2 size={12} /> Report Access
+                        </button>{' '}
+                      </>
+                    )}
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => { setNewPw(''); setErr(''); setShowPw(false); setPwModal(user.id) }}
@@ -173,6 +206,54 @@ export default function UserManagement() {
               {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Report Access Modal */}
+      <Modal
+        open={!!accessModal}
+        onClose={() => setAccessModal(null)}
+        title={`Report Access — ${users?.find(u => u.id === accessModal)?.username || ''}`}
+        size="modal-sm"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setAccessModal(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleSaveAccess}>Save Access</button>
+          </>
+        }
+      >
+        {err && <div className="form-error" style={{ marginBottom: 12 }}>{err}</div>}
+        <p style={{ fontSize: 12.5, color: '#6b7280', marginBottom: 14 }}>
+          Select which financial reports this user can view.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {REPORT_OPTIONS.map(({ id, label }) => (
+            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13.5 }}>
+              <input
+                type="checkbox"
+                checked={accessForm.includes(id)}
+                onChange={() => toggleReport(id)}
+                style={{ width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--gold, #b8923f)' }}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #f3f4f6', display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setAccessForm(REPORT_OPTIONS.map(r => r.id))}
+          >
+            Select All
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setAccessForm([])}
+          >
+            Clear All
+          </button>
         </div>
       </Modal>
     </div>

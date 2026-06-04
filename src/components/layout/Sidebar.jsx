@@ -39,7 +39,7 @@ const NAV = [
 ]
 
 export default function Sidebar({ page, onNavigate }) {
-  const { currentUser, logout, isAdmin } = useAuth()
+  const { currentUser, logout, isAdmin, reportAccess } = useAuth()
 
   return (
     <nav className="sidebar">
@@ -60,23 +60,29 @@ export default function Sidebar({ page, onNavigate }) {
         </div>
       </div>
 
-      {NAV.map(({ section, items }) => (
-        <div className="sidebar-section" key={section}>
-          <div className="sidebar-label">{section}</div>
-          {items.map(({ id, Icon, label }) => (
-            <div
-              key={id}
-              className={`nav-item${page === id ? ' active' : ''}`}
-              onClick={() => onNavigate(id)}
-            >
-              <span className="nav-icon">
-                <Icon size={15} strokeWidth={1.75} style={{ color: page === id ? 'var(--gold)' : 'var(--side-text)' }} />
-              </span>
-              {label}
-            </div>
-          ))}
-        </div>
-      ))}
+      {NAV.map(({ section, items }) => {
+        const visibleItems = section === 'Reports'
+          ? items.filter(({ id }) => reportAccess.includes(id))
+          : items
+        if (visibleItems.length === 0) return null
+        return (
+          <div className="sidebar-section" key={section}>
+            <div className="sidebar-label">{section}</div>
+            {visibleItems.map(({ id, Icon, label }) => (
+              <div
+                key={id}
+                className={`nav-item${page === id ? ' active' : ''}`}
+                onClick={() => onNavigate(id)}
+              >
+                <span className="nav-icon">
+                  <Icon size={15} strokeWidth={1.75} style={{ color: page === id ? 'var(--gold)' : 'var(--side-text)' }} />
+                </span>
+                {label}
+              </div>
+            ))}
+          </div>
+        )
+      })}
 
       {/* Settings — admin only */}
       {isAdmin && (

@@ -56,10 +56,10 @@ export function generateInvoiceHTML(invoice, withPrintBar = false) {
     </tr>`
   }).join('')
 
-  const TOTAL_ROWS  = Math.max(8, items.length + 3)
+  const TOTAL_ROWS  = Math.max(20, items.length + 19)
   const emptyCount  = TOTAL_ROWS - items.length - 1
   const emptyRowsHtml = Array.from({ length: Math.max(0, emptyCount) }, () =>
-    `<tr style="height:22px">
+    `<tr>
       <td colspan="3"></td><td colspan="5"></td><td colspan="14"></td>
       <td colspan="4"></td><td colspan="4"></td>
     </tr>`
@@ -91,7 +91,7 @@ export function generateInvoiceHTML(invoice, withPrintBar = false) {
   .vt { vertical-align: top; }
   .bold { font-weight: bold; }
   .pbar { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 12px; background: #f0f0f0; border-bottom: 2px solid #ccc; margin-bottom: 14px; }
-  @media print { .pbar { display: none; } body { padding: 0; } }
+  @media print { .pbar { display: none; } html, body { height: 100%; padding: 0; } table { height: 100%; } }
 </style>
 </head>
 <body>

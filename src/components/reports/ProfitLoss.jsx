@@ -66,13 +66,15 @@ export default function ProfitLoss() {
   const totalExpenses = expenseAccs.reduce((s, a) => s + a.balance, 0)
   const netIncome = totalRevenue - totalExpenses
 
-  const revenueSlices = revenueAccs
-    .filter(a => a.balance > 0)
-    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: totalRevenue ? a.balance / totalRevenue * 100 : 0 }))
+  const revenueFiltered = revenueAccs.filter(a => a.balance >= 0.005)
+  const revenueFilteredTotal = revenueFiltered.reduce((s, a) => s + a.balance, 0)
+  const revenueSlices = revenueFiltered
+    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: revenueFilteredTotal ? a.balance / revenueFilteredTotal * 100 : 0 }))
 
-  const expenseSlices = expenseAccs
-    .filter(a => a.balance > 0)
-    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: totalExpenses ? a.balance / totalExpenses * 100 : 0 }))
+  const expenseFiltered = expenseAccs.filter(a => a.balance >= 0.005)
+  const expenseFilteredTotal = expenseFiltered.reduce((s, a) => s + a.balance, 0)
+  const expenseSlices = expenseFiltered
+    .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: expenseFilteredTotal ? a.balance / expenseFilteredTotal * 100 : 0 }))
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>

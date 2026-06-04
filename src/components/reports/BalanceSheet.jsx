@@ -51,12 +51,12 @@ export default function BalanceSheet() {
   const totalLiabEquity  = totalLiabilities + totalEquity
   const balanced         = Math.abs(totalAssets - totalLiabEquity) < 0.01
 
-  const assetPositive = assets.filter(a => a.balance > 0)
+  const assetPositive = assets.filter(a => a.balance >= 0.005)
   const assetPositiveTotal = assetPositive.reduce((s, a) => s + a.balance, 0)
   const assetSlices = assetPositive
     .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: assetPositiveTotal ? a.balance / assetPositiveTotal * 100 : 0 }))
 
-  const liabPositive = liabilities.filter(a => a.balance > 0)
+  const liabPositive = liabilities.filter(a => a.balance >= 0.005)
   const liabPositiveTotal = liabPositive.reduce((s, a) => s + a.balance, 0)
   const liabSlices = liabPositive
     .map((a, i) => ({ label: a.name, value: a.balance, color: COLORS[i % COLORS.length], pct: liabPositiveTotal ? a.balance / liabPositiveTotal * 100 : 0 }))

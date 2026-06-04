@@ -23,6 +23,8 @@ function loadCache() {
   try { return JSON.parse(localStorage.getItem(CACHE_KEY)) } catch { return null }
 }
 
+const r2 = (n) => Math.round(n * 100) / 100
+
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
@@ -36,8 +38,15 @@ export function AppProvider({ children }) {
         const d = snap.data()
         // Migrate: add missing fields from older data
         const needsMigration = !d.pettyCash || !('financialNotes' in d)
-        const migrated = { financialNotes: '', pettyCash: [], ...d }
-        if (needsMigration) setDoc(APP_DOC, migrated)
+        // Clean up floating-point residuals on existing account balances
+        const needsBalanceRounding = (d.accounts || []).some(a => a.balance !== Math.round(a.balance * 100) / 100)
+        const migrated = {
+          financialNotes: '',
+          pettyCash: [],
+          ...d,
+          accounts: (d.accounts || []).map(a => ({ ...a, balance: r2(a.balance) })),
+        }
+        if (needsMigration || needsBalanceRounding) setDoc(APP_DOC, migrated)
         setData(migrated)
         localStorage.setItem(CACHE_KEY, JSON.stringify(migrated))
       } else {
@@ -102,8 +111,8 @@ export function AppProvider({ children }) {
       if (goingPaid || leavingPaid) {
         const sign = goingPaid ? 1 : -1
         next.accounts = data.accounts.map(a => {
-          if (a.id === 'a1'  || a.code === '1000') return { ...a, balance: a.balance + sign * i.total }
-          if (a.id === 'a10' || a.code === '4000') return { ...a, balance: a.balance + sign * i.total }
+          if (a.id === 'a1'  || a.code === '1000') return { ...a, balance: r2(a.balance + sign * i.total) }
+          if (a.id === 'a10' || a.code === '4000') return { ...a, balance: r2(a.balance + sign * i.total) }
           return a
         })
       }
@@ -132,8 +141,8 @@ export function AppProvider({ children }) {
     const next = { ...data }
     next.expenses = [...data.expenses, newExp]
     next.accounts = data.accounts.map(a => {
-      if (a.id === exp.accountId)              return { ...a, balance: a.balance + exp.amount }
-      if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance - exp.amount }
+      if (a.id === exp.accountId)              return { ...a, balance: r2(a.balance + exp.amount) }
+      if (a.id === 'a1' || a.code === '1000') return { ...a, balance: r2(a.balance - exp.amount) }
       return a
     })
     persist(next)
@@ -149,8 +158,8 @@ export function AppProvider({ children }) {
     const next = { ...data }
     next.expenses = data.expenses.filter(e => e.id !== id)
     next.accounts = data.accounts.map(a => {
-      if (a.id === exp.accountId)              return { ...a, balance: a.balance - exp.amount }
-      if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance + exp.amount }
+      if (a.id === exp.accountId)              return { ...a, balance: r2(a.balance - exp.amount) }
+      if (a.id === 'a1' || a.code === '1000') return { ...a, balance: r2(a.balance + exp.amount) }
       return a
     })
     persist(next)
@@ -162,16 +171,16 @@ export function AppProvider({ children }) {
     if (mode === 'replace') {
       data.expenses.forEach(exp => {
         accounts = accounts.map(a => {
-          if (a.id === exp.accountId)              return { ...a, balance: a.balance - exp.amount }
-          if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance + exp.amount }
+          if (a.id === exp.accountId)              return { ...a, balance: r2(a.balance - exp.amount) }
+          if (a.id === 'a1' || a.code === '1000') return { ...a, balance: r2(a.balance + exp.amount) }
           return a
         })
       })
     }
     records.forEach(exp => {
       accounts = accounts.map(a => {
-        if (a.id === exp.accountId)              return { ...a, balance: a.balance + exp.amount }
-        if (a.id === 'a1' || a.code === '1000') return { ...a, balance: a.balance - exp.amount }
+        if (a.id === exp.accountId)              return { ...a, balance: r2(a.balance + exp.amount) }
+        if (a.id === 'a1' || a.code === '1000') return { ...a, balance: r2(a.balance - exp.amount) }
         return a
       })
     })
@@ -191,7 +200,7 @@ export function AppProvider({ children }) {
         if (a.type === 'Asset' || a.type === 'Expense') return s + e.debit - e.credit
         return s + e.credit - e.debit
       }, 0)
-      return { ...a, balance: a.balance + delta }
+      return { ...a, balance: r2(a.balance + delta) }
     })
     persist(next)
   }, [data, persist])
@@ -208,7 +217,7 @@ export function AppProvider({ children }) {
         if (a.type === 'Asset' || a.type === 'Expense') return s + e.debit - e.credit
         return s + e.credit - e.debit
       }, 0)
-      return { ...a, balance: a.balance - delta }
+      return { ...a, balance: r2(a.balance - delta) }
     })
     persist(next)
   }, [data, persist])
@@ -227,7 +236,7 @@ export function AppProvider({ children }) {
             if (a.id !== e.accountId) return a
             const delta = (a.type === 'Asset' || a.type === 'Expense')
               ? e.debit - e.credit : e.credit - e.debit
-            return { ...a, balance: a.balance - delta }
+            return { ...a, balance: r2(a.balance - delta) }
           })
         })
       })
@@ -239,7 +248,7 @@ export function AppProvider({ children }) {
           if (a.id !== e.accountId) return a
           const delta = (a.type === 'Asset' || a.type === 'Expense')
             ? e.debit - e.credit : e.credit - e.debit
-          return { ...a, balance: a.balance + delta }
+          return { ...a, balance: r2(a.balance + delta) }
         })
       })
     })

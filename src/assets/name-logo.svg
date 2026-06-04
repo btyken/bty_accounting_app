@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 720">
+  <defs>
+    <style>
+      .cls-1, .cls-2 {
+        fill: #231f20;
+      }
+
+      .cls-2 {
+        font-family: STIXTwoText, 'STIX Two Text';
+        font-size: 52px;
+        font-variation-settings: 'wght' 400;
+      }
+
+      .cls-3 {
+        letter-spacing: -.06em;
+      }
+
+      .cls-4 {
+        letter-spacing: -.03em;
+      }
+
+      .cls-5 {
+        letter-spacing: 0em;
+      }
+
+      .cls-6 {
+        letter-spacing: .02em;
+      }
+
+      .cls-7 {
+        letter-spacing: .02em;
+      }
+
+      .cls-8 {
+        letter-spacing: 0em;
+      }
+
+      .cls-9 {
+        letter-spacing: .01em;
+      }
+    </style>
+  </defs>
+  <g id="Main">
+    <path class="cls-1" d="M218.95,468.3l141.04-141.12,141.16,141.08c10-9.13,18.52-18.68,25.7-27.96l-166.86-166.78-166.84,166.72c7.24,9.39,15.79,18.96,25.8,28.06Z"/>
+    <path class="cls-1" d="M360,531.54c-115.25,0-209.14-91.4-213.19-205.66h-24.96c4.06,128.05,109.12,230.61,238.15,230.61s234.09-102.56,238.15-230.61h-24.96c-4.04,114.27-97.94,205.66-213.19,205.66Z"/>
+    <path class="cls-1" d="M360,104.86c115.25,0,209.14,91.4,213.19,205.66h24.96c-4.06-128.05-109.12-230.61-238.15-230.61s-234.09,102.56-238.15,230.61h24.96c4.04-114.27,97.94-205.66,213.19-205.66Z"/>
+  </g>
+  <text class="cls-2" transform="translate(125.22 625.23)"><tspan class="cls-6" x="0" y="0">S</tspan><tspan class="cls-3" x="27.51" y="0">P</tspan><tspan class="cls-6" x="53.98" y="0">A</tspan><tspan class="cls-5" x="92.61" y="0">R</tspan><tspan class="cls-4" x="126.62" y="0">T</tspan><tspan class="cls-7" x="156.16" y="0">AN </tspan><tspan class="cls-9" x="248.19" y="0">B</tspan><tspan class="cls-6" x="280.85" y="0">T</tspan><tspan class="cls-8" x="313.5" y="0">Y</tspan><tspan class="cls-6" x="347.41" y="0" xml:space="preserve"> INC.</tspan></text>
+</svg>

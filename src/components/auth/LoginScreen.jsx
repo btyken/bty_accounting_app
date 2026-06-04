@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../store/AuthContext'
-import logo from '../../assets/logo.svg'
+import logo from '../../assets/name-logo.svg'
 
 export default function LoginScreen() {
   const { login, loginError, setLoginError } = useAuth()
@@ -38,7 +38,7 @@ export default function LoginScreen() {
           <img
             src={logo}
             alt="Spartan BTY Inc."
-            style={{ width: 140, height: 140, display: 'block', margin: '0 auto', filter: 'invert(1)' }}
+            style={{ width: 260, display: 'block', margin: '0 auto' }}
           />
         </div>
 

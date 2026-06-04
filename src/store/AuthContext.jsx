@@ -134,6 +134,19 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const changeRole = async (id, newRole) => {
+    if (newRole === 'user' && users.filter(u => u.role === 'admin').length === 1 &&
+        users.find(u => u.id === id)?.role === 'admin') {
+      return { error: 'Cannot demote the only admin account.' }
+    }
+    try {
+      await updateDoc(doc(db, 'users', id), { role: newRole })
+      return { success: true }
+    } catch (e) {
+      return { error: e.message || 'Failed to update role.' }
+    }
+  }
+
   const updateUserReportAccess = async (userId, reportIds) => {
     try {
       await updateDoc(doc(db, 'users', userId), { reportAccess: reportIds })
@@ -152,7 +165,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       users, currentUser, loginError, setLoginError,
-      login, logout, addUser, deleteUser, changePassword,
+      login, logout, addUser, deleteUser, changePassword, changeRole,
       updateUserReportAccess, reportAccess,
       isAdmin,
     }}>

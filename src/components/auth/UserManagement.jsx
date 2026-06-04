@@ -6,7 +6,7 @@ import { Eye, EyeOff, ShieldCheck, User, KeyRound, FileBarChart2 } from 'lucide-
 const BLANK = { username: '', password: '', role: 'user' }
 
 export default function UserManagement() {
-  const { users, currentUser, addUser, deleteUser, changePassword, updateUserReportAccess, isAdmin } = useAuth()
+  const { users, currentUser, addUser, deleteUser, changePassword, changeRole, updateUserReportAccess, isAdmin } = useAuth()
   const [modal,       setModal]       = useState(false)
   const [pwModal,     setPwModal]     = useState(null)   // user id
   const [accessModal, setAccessModal] = useState(null)   // user id
@@ -33,6 +33,16 @@ export default function UserManagement() {
     if (!confirm(`Delete user "${user.username}"? This cannot be undone.`)) return
     const res = deleteUser(user.id)
     if (res.error) alert(res.error)
+  }
+
+  const handleChangeRole = async (user) => {
+    const newRole = user.role === 'admin' ? 'user' : 'admin'
+    const label = newRole === 'admin' ? 'promote to Admin' : 'demote to Member'
+    if (!confirm(`${user.username}: ${label}?`)) return
+    const res = await changeRole(user.id, newRole)
+    if (res.error) { setErr(res.error); return }
+    setSuccess(`"${user.username}" is now ${newRole === 'admin' ? 'an Admin' : 'a Member'}.`)
+    setTimeout(() => setSuccess(''), 3000)
   }
 
   const handleChangePw = async () => {
@@ -134,7 +144,16 @@ export default function UserManagement() {
                       <KeyRound size={12} /> Change Password
                     </button>{' '}
                     {user.username !== currentUser?.username && (
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(user)}>Delete</button>
+                      <>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleChangeRole(user)}
+                          title={user.role === 'admin' ? 'Demote to Member' : 'Promote to Admin'}
+                        >
+                          {user.role === 'admin' ? 'Make Member' : 'Make Admin'}
+                        </button>{' '}
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(user)}>Delete</button>
+                      </>
                     )}
                   </td>
                 </tr>

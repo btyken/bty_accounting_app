@@ -193,4 +193,33 @@ tr:hover td { background: #faf8f3; }
 .justify-between { justify-content: space-between; }
 .w-full { width: 100%; }
 .font-bold { font-weight: 700; }
+
+/* ── Print ───────────────────────────────────────────────── */
+@media print {
+  @page { size: A4 portrait; margin: 1.5cm; }
+
+  /* Remove layout constraints so all content renders */
+  .app    { display: block; height: auto; overflow: visible; }
+  .main   { display: block; height: auto; overflow: visible; }
+  .content { overflow: visible; height: auto; padding: 0; }
+
+  /* Hide chrome */
+  .sidebar, .topbar { display: none !important; }
+
+  /* Hide interactive controls inside report pages */
+  .btn, button, select, input,
+  .tabs, .import-zone, .modal-overlay,
+  .period-controls { display: none !important; }
+
+  /* Cards flush to page */
+  .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+
+  /* Tables should not clip */
+  .table-wrap { overflow: visible; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+
+  /* Ensure colours print */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }

@@ -27,9 +27,11 @@ const r2 = (n) => Math.round(n * 100) / 100
 
 const AppContext = createContext(null)
 
+const EMPTY_DATA = { accounts: [], invoices: [], expenses: [], transactions: [], pettyCash: [], financialNotes: '' }
+
 export function AppProvider({ children }) {
   const cached = loadCache()
-  const [data,    setData]    = useState(cached)
+  const [data,    setData]    = useState(cached ?? EMPTY_DATA)
   const [appReady, setAppReady] = useState(!!cached)
 
   useEffect(() => {

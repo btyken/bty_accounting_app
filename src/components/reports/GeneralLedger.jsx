@@ -149,7 +149,7 @@ export default function GeneralLedger() {
                   .sort((a, b) => a.code.localeCompare(b.code))
                 if (!accs.length) return []
                 return [
-                  <option key={`h-${type}`} disabled>── {type}s ──</option>,
+                  <option key={`h-${type}`} disabled>── {type === 'Liability' ? 'Liabilities' : type === 'Equity' ? 'Equity' : type + 's'} ──</option>,
                   ...accs.map(a => (
                     <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
                   )),

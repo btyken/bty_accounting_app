@@ -288,7 +288,7 @@ export default function TrialBalance() {
                 return (
                   <React.Fragment key={type}>
                     <tr className="acc-type-header">
-                      <td colSpan={5}>{type}s</td>
+                      <td colSpan={5}>{type === 'Liability' ? 'Liabilities' : type === 'Equity' ? 'Equity' : type + 's'}</td>
                     </tr>
                     {typeRows.map(row => (
                       <tr key={row.id}>
@@ -311,7 +311,7 @@ export default function TrialBalance() {
                     ))}
                     <tr style={{ background: '#f9fafb', borderTop: '1px solid var(--border)' }}>
                       <td colSpan={3} style={{ paddingLeft: 28, fontWeight: 600, fontSize: 12.5 }}>
-                        Subtotal — {type}s
+                        Subtotal — {type === 'Liability' ? 'Liabilities' : type === 'Equity' ? 'Equity' : type + 's'}
                       </td>
                       <td className="text-right" style={{ fontWeight: 600 }}>
                         {tDr > 0 ? fmt(tDr) : '—'}

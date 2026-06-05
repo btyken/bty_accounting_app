@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
 import { fmt, today, uid, statusBadge } from '../utils/format'
@@ -42,8 +42,16 @@ export default function Invoices() {
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [form, setForm]         = useState(() => newForm('INV-0001'))
   const [err, setErr]           = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [successMsg, setSuccessMsg] = useState('')
   const [viewInv, setViewInv]   = useState(null)
   const [showHistory, setShowHistory] = useState(false)
+
+  useEffect(() => {
+    if (!successMsg) return
+    const t = setTimeout(() => setSuccessMsg(''), 4000)
+    return () => clearTimeout(t)
+  }, [successMsg])
 
   const customerHistory = useMemo(() => {
     const seen = new Map()
@@ -86,19 +94,34 @@ export default function Invoices() {
   const shipping  = parseFloat(form.shippingCost) || 0
   const grandTotal = subtotal + shipping
 
-  const save = () => {
+  const save = async () => {
     if (!form.customer.trim()) return setErr('Customer name is required.')
     if (!form.date)             return setErr('Invoice date is required.')
     const lineItems = form.lineItems.filter(i => i.description || i.rate || i.skuCode)
     if (!lineItems.length)      return setErr('Add at least one line item.')
+    setSaving(true)
+    await new Promise(r => setTimeout(r, 700))
     addInvoice({ ...form, lineItems, total: grandTotal })
+    setSaving(false)
     setModal(false)
+    setSuccessMsg(`Invoice ${form.number} created successfully!`)
   }
 
   const filtered = tab === 'all' ? data.invoices : data.invoices.filter(i => i.status === tab)
 
   return (
     <div>
+      {successMsg && (
+        <div style={{
+          position: 'fixed', top: 20, right: 24, zIndex: 9999,
+          background: '#16a34a', color: '#fff', borderRadius: 8,
+          padding: '12px 20px', fontWeight: 600, fontSize: 14,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 18 }}>✓</span> {successMsg}
+        </div>
+      )}
       <div className="tabs">
         {TABS.map(t => (
           <div key={t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>
@@ -198,8 +221,10 @@ export default function Invoices() {
         size="modal-xl"
         footer={
           <>
-            <button className="btn btn-secondary" onClick={() => setModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={save}>Save Invoice</button>
+            <button className="btn btn-secondary" onClick={() => setModal(false)} disabled={saving}>Cancel</button>
+            <button className="btn btn-primary" onClick={save} disabled={saving} style={{ minWidth: 140 }}>
+              {saving ? 'Creating invoice…' : 'Save Invoice'}
+            </button>
           </>
         }
       >

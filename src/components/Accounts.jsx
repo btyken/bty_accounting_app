@@ -40,6 +40,7 @@ export default function Accounts() {
   }
 
   const TYPES = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']
+  const TYPE_LABEL = { Asset: 'Assets', Liability: 'Liabilities', Equity: 'Equity', Revenue: 'Revenue', Expense: 'Expenses' }
 
   return (
     <div>
@@ -66,7 +67,7 @@ export default function Accounts() {
                 if (!accs.length) return null
                 return (
                   <React.Fragment key={type}>
-                    <tr className="acc-type-header"><td colSpan={5}>{type}s</td></tr>
+                    <tr className="acc-type-header"><td colSpan={5}>{TYPE_LABEL[type]}</td></tr>
                     {accs.map(a => (
                       <tr key={a.id}>
                         <td className="text-muted">{a.code}</td>

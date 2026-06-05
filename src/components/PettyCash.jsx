@@ -1,14 +1,15 @@
 import React, { useState } from 'react'
 import { useApp } from '../store/AppContext'
 import { useAuth } from '../store/AuthContext'
-import { fmt, today, getDateRange, getLast6Months } from '../utils/format'
+import { fmt, today, uid, getDateRange, getLast6Months } from '../utils/format'
 import { DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import PieChart from './ui/PieChart'
 import DeleteAllModal from './ui/DeleteAllModal'
-import { Trash2, Wallet } from 'lucide-react'
+import { Trash2, Wallet, X } from 'lucide-react'
 
-const BLANK = { date: today(), payee: '', purpose: '', amount: '', department: '', receiptNo: '' }
+const BLANK_ENTRY = () => ({ id: uid(), accountId: '', debit: '', credit: '' })
+const BLANK = { date: today(), payee: '', purpose: '', department: '', receiptNo: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] }
 
 const PERIODS = [
   { id: 'all',       label: 'All' },
@@ -39,18 +40,49 @@ export default function PettyCash() {
 
   const pettyCash = data.pettyCash || []
 
-  const openNew = () => { setForm({ ...BLANK, date: today() }); setErr(''); setModal(true) }
+  const openNew = () => { setForm({ ...BLANK, date: today(), entries: [BLANK_ENTRY(), BLANK_ENTRY()] }); setErr(''); setModal(true) }
   const setField = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const updateEntry = (id, key, val) =>
+    setForm(f => ({ ...f, entries: f.entries.map(e => e.id === id ? { ...e, [key]: val } : e) }))
+  const addEntry    = () => setForm(f => ({ ...f, entries: [...f.entries, BLANK_ENTRY()] }))
+  const removeEntry = (id) => setForm(f => ({ ...f, entries: f.entries.filter(e => e.id !== id) }))
+
+  const totalDebit  = form.entries.reduce((s, e) => s + (parseFloat(e.debit) || 0), 0)
+  const totalCredit = form.entries.reduce((s, e) => s + (parseFloat(e.credit) || 0), 0)
+  const balanced    = Math.abs(totalDebit - totalCredit) < 0.01
 
   const save = () => {
     if (!form.date)    return setErr('Date is required.')
     if (!form.payee)   return setErr('Payee is required.')
     if (!form.purpose) return setErr('Purpose is required.')
-    const amount = parseFloat(form.amount)
-    if (!amount || amount <= 0) return setErr('Enter a valid amount.')
-    addPettyCash({ ...form, amount })
+    const entries = form.entries.filter(e => e.accountId && (parseFloat(e.debit) || parseFloat(e.credit)))
+    if (entries.length < 2) return setErr('At least two entries required.')
+    if (!balanced)          return setErr('Debits must equal credits.')
+    const amount = totalDebit
+    addPettyCash({ ...form, amount, entries: entries.map(e => ({ accountId: e.accountId, debit: parseFloat(e.debit)||0, credit: parseFloat(e.credit)||0 })) })
     setModal(false)
   }
+
+  const accountOptions = () => {
+    const types = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']
+    return types.flatMap(t => {
+      const accs = (data.accounts || []).filter(a => a.type === t)
+      if (!accs.length) return []
+      return [{ isGroup: true, label: `${t}s` }, ...accs]
+    })
+  }
+
+  const renderAccountSelect = (entry) => (
+    <select className="form-select" value={entry.accountId} onChange={e => updateEntry(entry.id, 'accountId', e.target.value)}>
+      <option value="">— Select account —</option>
+      {accountOptions().map((opt, i) =>
+        opt.isGroup
+          ? <optgroup key={`g-${i}`} label={opt.label} />
+          : <option key={opt.id} value={opt.id}>{opt.code} — {opt.name}</option>
+      )}
+    </select>
+  )
 
   const range = period === 'custom'
     ? (dateFrom && dateTo ? [dateFrom, dateTo] : null)
@@ -324,10 +356,11 @@ export default function PettyCash() {
         open={modal}
         onClose={() => setModal(false)}
         title="Petty Cash Entry"
+        size="modal-lg"
         footer={
           <>
             <button className="btn btn-secondary" onClick={() => setModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={save}>Save Entry</button>
+            <button className="btn btn-primary" onClick={save} disabled={!balanced && form.entries.some(e => e.accountId)}>Save Entry</button>
           </>
         }
       >
@@ -338,8 +371,8 @@ export default function PettyCash() {
             <input className="form-input" type="date" value={form.date} onChange={e => setField('date', e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Amount (₱)</label>
-            <input className="form-input" type="number" min="0" step="0.01" value={form.amount} onChange={e => setField('amount', e.target.value)} placeholder="0.00" />
+            <label className="form-label">Receipt #</label>
+            <input className="form-input" value={form.receiptNo} onChange={e => setField('receiptNo', e.target.value)} placeholder="OR / Receipt number" />
           </div>
         </div>
         <div className="grid-2">
@@ -348,20 +381,44 @@ export default function PettyCash() {
             <input className="form-input" value={form.payee} onChange={e => setField('payee', e.target.value)} placeholder="Who was paid?" />
           </div>
           <div className="form-group">
-            <label className="form-label">Receipt #</label>
-            <input className="form-input" value={form.receiptNo} onChange={e => setField('receiptNo', e.target.value)} placeholder="OR / Receipt number" />
+            <label className="form-label">Department</label>
+            <select className="form-select" value={form.department} onChange={e => setField('department', e.target.value)}>
+              <option value="">— Select Department —</option>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
           </div>
         </div>
         <div className="form-group">
           <label className="form-label">Purpose / Description</label>
           <input className="form-input" value={form.purpose} onChange={e => setField('purpose', e.target.value)} placeholder="What was it for?" />
         </div>
-        <div className="form-group">
-          <label className="form-label">Department</label>
-          <select className="form-select" value={form.department} onChange={e => setField('department', e.target.value)}>
-            <option value="">— Select Department —</option>
-            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+
+        <label className="form-label">Entries</label>
+        <table className="line-items">
+          <thead>
+            <tr>
+              <th style={{ width: '50%' }}>Account</th>
+              <th style={{ width: '20%' }}>Debit (₱)</th>
+              <th style={{ width: '20%' }}>Credit (₱)</th>
+              <th style={{ width: '10%' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {form.entries.map(entry => (
+              <tr key={entry.id}>
+                <td>{renderAccountSelect(entry)}</td>
+                <td><input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={entry.debit} onChange={e => updateEntry(entry.id, 'debit', e.target.value)} /></td>
+                <td><input className="form-input" type="number" min="0" step="0.01" placeholder="0.00" value={entry.credit} onChange={e => updateEntry(entry.id, 'credit', e.target.value)} /></td>
+                <td><button className="del-btn" onClick={() => removeEntry(entry.id)}><X size={13} /></button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button className="btn btn-secondary btn-sm" onClick={addEntry}>+ Add Entry</button>
+
+        <div style={{ marginTop: 12, fontSize: 13, padding: '8px 12px', borderRadius: 6, background: balanced ? 'var(--pos-bg)' : 'var(--neg-bg)', color: balanced ? 'var(--pos)' : 'var(--neg)' }}>
+          Debits: <strong>{fmt(totalDebit)}</strong> &nbsp;|&nbsp; Credits: <strong>{fmt(totalCredit)}</strong>
+          &nbsp; {balanced ? 'Balanced' : 'Not balanced'}
         </div>
       </Modal>
 

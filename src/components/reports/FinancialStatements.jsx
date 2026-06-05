@@ -2,6 +2,13 @@ import React, { useState } from 'react'
 import { useApp } from '../../store/AppContext'
 import { fmt, today, uid } from '../../utils/format'
 import { Scale } from 'lucide-react'
+import PieChart from '../ui/PieChart'
+
+const COLORS = [
+  '#111111', '#1e40af', '#dc2626', '#d97706', '#065f46',
+  '#7c3aed', '#be185d', '#0e7490', '#047857', '#9a3412',
+  '#3730a3', '#6b21a8',
+]
 
 const TABS = [
   { id: 'income',   label: 'Income Statement'        },
@@ -153,6 +160,23 @@ function BalanceSheetView({ data }) {
   const totalLiabEquity       = totalLiabilities + totalEquity
   const balanced              = Math.abs(totalAssets - totalLiabEquity) < 0.01
 
+  const allAssets = [...currentAssets, ...nonCurrentAssets]
+  const allLiabs  = [...currentLiabs, ...nonCurrentLiabs]
+
+  const assetPositive      = allAssets.filter(a => a.balance >= 0.005)
+  const assetPositiveTotal = assetPositive.reduce((s, a) => s + a.balance, 0)
+  const assetSlices        = assetPositive.map((a, i) => ({
+    label: a.name, value: a.balance, color: COLORS[i % COLORS.length],
+    pct: assetPositiveTotal ? a.balance / assetPositiveTotal * 100 : 0,
+  }))
+
+  const liabPositive      = allLiabs.filter(a => a.balance >= 0.005)
+  const liabPositiveTotal = liabPositive.reduce((s, a) => s + a.balance, 0)
+  const liabSlices        = liabPositive.map((a, i) => ({
+    label: a.name, value: a.balance, color: COLORS[i % COLORS.length],
+    pct: liabPositiveTotal ? a.balance / liabPositiveTotal * 100 : 0,
+  }))
+
   const AccRow = ({ acc }) => (
     <tr className="report-row report-group">
       <td>{acc.code} — {acc.name}</td>
@@ -176,9 +200,49 @@ function BalanceSheetView({ data }) {
   )
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <ReportHeader title="Balance Sheet" />
-      <div className="card">
+
+      {(assetSlices.length > 0 || liabSlices.length > 0) && (
+        <div className="grid-2" style={{ marginBottom: 20 }}>
+          {assetSlices.length > 0 && (
+            <div className="card">
+              <div className="section-header">Assets Breakdown</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <PieChart slices={assetSlices} />
+                <div style={{ marginTop: 10, width: '100%' }}>
+                  {assetSlices.map(s => (
+                    <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 13 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{s.label}</span>
+                      <strong>{s.pct.toFixed(1)}%</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {liabSlices.length > 0 && (
+            <div className="card">
+              <div className="section-header">Liabilities Breakdown</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <PieChart slices={liabSlices} />
+                <div style={{ marginTop: 10, width: '100%' }}>
+                  {liabSlices.map(s => (
+                    <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: 13 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{s.label}</span>
+                      <strong>{s.pct.toFixed(1)}%</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="card" style={{ maxWidth: 800, margin: '0 auto' }}>
         <div className="table-wrap">
           <table>
             <tbody>

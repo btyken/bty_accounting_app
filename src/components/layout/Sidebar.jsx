@@ -2,7 +2,7 @@ import React from 'react'
 import { useAuth } from '../../store/AuthContext'
 import {
   LayoutDashboard, BookOpen, ArrowLeftRight, Edit3, FileText, CreditCard, Wallet,
-  Hash, BookMarked, FileBarChart2, TrendingUp, Scale, ClipboardList, CalendarRange,
+  Hash, BookMarked, FileBarChart2, TrendingUp, ClipboardList, CalendarRange,
   Users, LogOut, ShieldCheck, User,
 } from 'lucide-react'
 
@@ -31,7 +31,6 @@ const NAV = [
       { id: 'gl',           Icon: BookMarked,    label: 'General Ledger' },
       { id: 'financial',    Icon: FileBarChart2, label: 'Financial Statements' },
       { id: 'pl',           Icon: TrendingUp,    label: 'Profit & Loss' },
-      { id: 'balance',      Icon: Scale,         label: 'Balance Sheet' },
       { id: 'expreport',    Icon: ClipboardList, label: 'Expense Report' },
       { id: 'aging',        Icon: CalendarRange, label: 'Aging Reports' },
     ],

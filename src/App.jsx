@@ -12,7 +12,6 @@ import Transactions from './components/Transactions'
 import Invoices from './components/Invoices'
 import Expenses from './components/Expenses'
 import ProfitLoss from './components/reports/ProfitLoss'
-import BalanceSheet from './components/reports/BalanceSheet'
 import ExpenseReport from './components/reports/ExpenseReport'
 import GeneralLedger from './components/reports/GeneralLedger'
 import TrialBalance from './components/reports/TrialBalance'
@@ -21,8 +20,8 @@ import AdjustingEntries from './components/reports/AdjustingEntries'
 import AgingReports from './components/reports/AgingReports'
 import PettyCash from './components/PettyCash'
 
-const PRINT_PAGES  = ['pl', 'balance', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
-const REPORT_PAGES = ['pl', 'balance', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
+const PRINT_PAGES  = ['pl', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
+const REPORT_PAGES = ['pl', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
 
 function AccessRestricted() {
   return (
@@ -72,7 +71,6 @@ function AppInner() {
       case 'invoices':     return <Invoices />
       case 'expenses':     return <Expenses />
       case 'pl':           return <ProfitLoss />
-      case 'balance':      return <BalanceSheet />
       case 'expreport':    return <ExpenseReport />
       case 'financial':    return <FinancialStatements />
       case 'gl':           return <GeneralLedger />

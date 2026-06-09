@@ -224,6 +224,26 @@ export function AppProvider({ children }) {
     persist(next)
   }, [data, persist])
 
+  const updateTransaction = useCallback((id, newTxn) => {
+    const old = data.transactions.find(t => t.id === id)
+    if (!old) return
+    const accounts = data.accounts.map(a => {
+      const oldEntries = old.entries.filter(e => e.accountId === a.id)
+      const newEntries = newTxn.entries.filter(e => e.accountId === a.id)
+      if (!oldEntries.length && !newEntries.length) return a
+      const reverseDelta = oldEntries.reduce((s, e) =>
+        (a.type === 'Asset' || a.type === 'Expense') ? s + e.debit - e.credit : s + e.credit - e.debit, 0)
+      const applyDelta = newEntries.reduce((s, e) =>
+        (a.type === 'Asset' || a.type === 'Expense') ? s + e.debit - e.credit : s + e.credit - e.debit, 0)
+      return { ...a, balance: r2(a.balance - reverseDelta + applyDelta) }
+    })
+    persist({
+      ...data,
+      accounts,
+      transactions: data.transactions.map(t => t.id === id ? { ...t, ...newTxn } : t),
+    })
+  }, [data, persist])
+
   const updateTransactionMeta = useCallback((id, changes) => {
     persist({ ...data, transactions: data.transactions.map(t => t.id === id ? { ...t, ...changes } : t) })
   }, [data, persist])
@@ -345,7 +365,7 @@ export function AppProvider({ children }) {
       addAccount, updateAccount, deleteAccount, importAccounts,
       addInvoice, updateInvoice, deleteInvoice, importInvoices, nextInvoiceNum,
       addExpense, updateExpenseMeta, deleteExpense, importExpenses, nextExpNum,
-      addTransaction, updateTransactionMeta, deleteTransaction, importTransactions,
+      addTransaction, updateTransaction, updateTransactionMeta, deleteTransaction, importTransactions,
       addPettyCash, deletePettyCash, nextPCNum,
       saveFinancialNotes,
       clearAccounts, clearInvoices, clearExpenses, clearTransactions, clearPettyCash,

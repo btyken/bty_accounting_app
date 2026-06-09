@@ -3,7 +3,8 @@ import { useApp } from '../../store/AppContext'
 import { fmt, today } from '../../utils/format'
 import { DEPARTMENTS } from '../../data/defaults'
 import PieChart from '../ui/PieChart'
-import { ClipboardList } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
+import { ClipboardList, Download } from 'lucide-react'
 
 const DEPT_COLORS = [
   '#111111', '#1e40af', '#dc2626', '#d97706', '#065f46',
@@ -102,6 +103,19 @@ export default function ExpenseReport() {
     annually: `Year ${year}`,
   }[period] || ''
 
+  const handleExport = () => {
+    const rows = [...allExpenses].sort((a, b) => b.date.localeCompare(a.date)).map(e => ({
+      Date: e.date,
+      Ref: e.number || e.ref || '',
+      'Vendor / Description': e.vendor,
+      Account: e.isJournal ? (e.accounts || '') : accName(e.accountId),
+      Department: e.department || '',
+      Source: e.isJournal ? 'Journal Entry' : 'Direct',
+      Amount: e.amount,
+    }))
+    exportToExcel([{ name: 'Expense Report', rows }], `ExpenseReport_${periodLabel.replace(/[^a-zA-Z0-9]/g, '_')}`)
+  }
+
   return (
     <div>
       {/* Controls */}
@@ -142,6 +156,13 @@ export default function ExpenseReport() {
             Showing: <strong>{periodLabel}</strong> &nbsp;|&nbsp; {range[0]} — {range[1]}
           </div>
         )}
+      </div>
+
+      {/* Export button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button className="btn btn-secondary" onClick={handleExport} disabled={allExpenses.length === 0}>
+          <Download size={13} /> Export Excel
+        </button>
       </div>
 
       {/* Summary */}

@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useApp } from '../../store/AppContext'
 import { fmt, today, uid } from '../../utils/format'
-import { Scale } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
+import { Scale, Download } from 'lucide-react'
 import PieChart from '../ui/PieChart'
 
 const COLORS = [
@@ -822,14 +823,74 @@ export default function FinancialStatements() {
   const { data, addTransaction, saveFinancialNotes } = useApp()
   const [tab, setTab] = useState('income')
 
+  const handleExport = () => {
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    let rows = []
+    let sheetName = 'Financial Statement'
+
+    if (tab === 'income') {
+      sheetName = 'Income Statement'
+      const revenueAccs = data.accounts.filter(a => a.type === 'Revenue')
+      const expenseAccs = data.accounts.filter(a => a.type === 'Expense')
+      const totalRevenue = revenueAccs.reduce((s, a) => s + a.balance, 0)
+      const totalExpenses = expenseAccs.reduce((s, a) => s + a.balance, 0)
+      rows = [
+        { Section: 'REVENUE', Account: '', Amount: '' },
+        ...revenueAccs.map(a => ({ Section: '', Account: `${a.code} — ${a.name}`, Amount: a.balance })),
+        { Section: 'Total Revenue', Account: '', Amount: totalRevenue },
+        { Section: '', Account: '', Amount: '' },
+        { Section: 'EXPENSES', Account: '', Amount: '' },
+        ...expenseAccs.map(a => ({ Section: '', Account: `${a.code} — ${a.name}`, Amount: a.balance })),
+        { Section: 'Total Expenses', Account: '', Amount: totalExpenses },
+        { Section: '', Account: '', Amount: '' },
+        { Section: 'NET INCOME / (LOSS)', Account: '', Amount: totalRevenue - totalExpenses },
+      ]
+    } else if (tab === 'balance') {
+      sheetName = 'Balance Sheet'
+      const assets = data.accounts.filter(a => a.type === 'Asset')
+      const liabs = data.accounts.filter(a => a.type === 'Liability')
+      const equities = data.accounts.filter(a => a.type === 'Equity')
+      const netIncome = data.accounts.filter(a => a.type === 'Revenue').reduce((s, a) => s + a.balance, 0)
+        - data.accounts.filter(a => a.type === 'Expense').reduce((s, a) => s + a.balance, 0)
+      rows = [
+        { Section: 'ASSETS', Account: '', Amount: '' },
+        ...assets.map(a => ({ Section: '', Account: `${a.code} — ${a.name}`, Amount: a.balance })),
+        { Section: 'TOTAL ASSETS', Account: '', Amount: assets.reduce((s, a) => s + a.balance, 0) },
+        { Section: '', Account: '', Amount: '' },
+        { Section: 'LIABILITIES', Account: '', Amount: '' },
+        ...liabs.map(a => ({ Section: '', Account: `${a.code} — ${a.name}`, Amount: a.balance })),
+        { Section: 'TOTAL LIABILITIES', Account: '', Amount: liabs.reduce((s, a) => s + a.balance, 0) },
+        { Section: '', Account: '', Amount: '' },
+        { Section: 'EQUITY', Account: '', Amount: '' },
+        ...equities.map(a => ({ Section: '', Account: `${a.code} — ${a.name}`, Amount: a.balance })),
+        { Section: 'Net Income (Current Period)', Account: '', Amount: netIncome },
+        { Section: 'TOTAL EQUITY', Account: '', Amount: equities.reduce((s, a) => s + a.balance, 0) + netIncome },
+      ]
+    } else if (tab === 'equity') {
+      sheetName = 'Statement of Equity'
+      const equityAccs = data.accounts.filter(a => a.type === 'Equity')
+      rows = equityAccs.map(a => ({ Account: `${a.code} — ${a.name}`, Balance: a.balance }))
+    }
+
+    if (rows.length === 0) return
+    exportToExcel([{ name: sheetName, rows }], `${sheetName.replace(/ /g, '_')}_${today()}`)
+  }
+
+  const exportableTab = ['income', 'balance', 'equity'].includes(tab)
+
   return (
     <div>
-      <div className="tabs" style={{ marginBottom: 24 }}>
-        {TABS.map(t => (
-          <div key={t.id} className={`tab${tab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}>
-            {t.label}
-          </div>
-        ))}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
+        <div className="tabs" style={{ marginBottom: 0 }}>
+          {TABS.map(t => (
+            <div key={t.id} className={`tab${tab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}>
+              {t.label}
+            </div>
+          ))}
+        </div>
+        {exportableTab && (
+          <button className="btn btn-secondary" onClick={handleExport}><Download size={13} /> Export Excel</button>
+        )}
       </div>
 
       {tab === 'income'   && <IncomeStatement    data={data} />}

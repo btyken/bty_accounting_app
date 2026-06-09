@@ -1,7 +1,7 @@
 import React from 'react'
 import { useApp } from '../store/AppContext'
 import { fmt, getLast6Months, statusBadge } from '../utils/format'
-import { FileText, CreditCard, TrendingUp, Scale, CheckCircle2 } from 'lucide-react'
+import { FileText, CreditCard, TrendingUp, Scale, CheckCircle2, ArrowRight } from 'lucide-react'
 
 export default function Dashboard({ onNavigate }) {
   const { data, accName } = useApp()
@@ -35,19 +35,31 @@ export default function Dashboard({ onNavigate }) {
   const recentExpenses = [...allExpenses].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
   const unpaidInvoices = invoices.filter(i => i.status !== 'paid').slice(0, 5)
 
+  const kpiCards = [
+    { title: 'Cash Balance',   value: cash,          cls: 'blue',  page: 'gl'        },
+    { title: 'Total Revenue',  value: totalRevenue,  cls: 'green', page: 'pl'        },
+    { title: 'Total Expenses', value: totalExpenses, cls: 'red',   page: 'expreport' },
+    { title: 'Net Income',     value: netIncome,     cls: netIncome >= 0 ? 'green' : 'red', page: 'pl' },
+  ]
+
   return (
     <div>
       {/* KPI Cards */}
       <div className="grid-4">
-        {[
-          { title: 'Cash Balance',   value: cash,          cls: 'blue'  },
-          { title: 'Total Revenue',  value: totalRevenue,  cls: 'green' },
-          { title: 'Total Expenses', value: totalExpenses, cls: 'red'   },
-          { title: 'Net Income',     value: netIncome,     cls: netIncome >= 0 ? 'green' : 'red' },
-        ].map(({ title, value, cls }) => (
-          <div className="card" key={title}>
+        {kpiCards.map(({ title, value, cls, page }) => (
+          <div
+            className="card"
+            key={title}
+            onClick={() => onNavigate(page)}
+            style={{ cursor: 'pointer', transition: 'box-shadow .15s' }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,.12)'}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = ''}
+          >
             <div className="card-title">{title}</div>
             <div className={`card-value ${cls}`}>{fmt(value)}</div>
+            <div style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+              View Report <ArrowRight size={10} />
+            </div>
           </div>
         ))}
       </div>
@@ -79,6 +91,9 @@ export default function Dashboard({ onNavigate }) {
             <div className="legend-item"><div className="legend-dot" style={{ background: 'var(--ink)' }} /> Income</div>
             <div className="legend-item"><div className="legend-dot" style={{ background: '#d4d4d0' }} /> Expenses</div>
           </div>
+          <div style={{ marginTop: 12, textAlign: 'right' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('pl')}>View P&L Report →</button>
+          </div>
         </div>
 
         {/* Outstanding Invoices */}
@@ -104,8 +119,9 @@ export default function Dashboard({ onNavigate }) {
               </div>
             )
           }
-          <div style={{ marginTop: 12, textAlign: 'right' }}>
+          <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <strong>Outstanding: <span style={{ color: 'var(--warn)' }}>{fmt(outstanding)}</span></strong>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('aging')}>View AR Aging →</button>
           </div>
         </div>
       </div>
@@ -134,6 +150,9 @@ export default function Dashboard({ onNavigate }) {
               </div>
             )
           }
+          <div style={{ marginTop: 12, textAlign: 'right' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('expreport')}>View Expense Report →</button>
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -142,8 +161,9 @@ export default function Dashboard({ onNavigate }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 8 }}>
             <button className="btn btn-primary w-full" onClick={() => onNavigate('invoices')}><FileText size={14} /> Create New Invoice</button>
             <button className="btn btn-secondary w-full" onClick={() => onNavigate('expenses')}><CreditCard size={14} /> Record Expense</button>
+            <button className="btn btn-secondary w-full" onClick={() => onNavigate('transactions')}><ArrowRight size={14} /> New Journal Entry</button>
             <button className="btn btn-secondary w-full" onClick={() => onNavigate('pl')}><TrendingUp size={14} /> View P&amp;L Report</button>
-            <button className="btn btn-secondary w-full" onClick={() => onNavigate('balance')}><Scale size={14} /> View Balance Sheet</button>
+            <button className="btn btn-secondary w-full" onClick={() => onNavigate('financial')}><Scale size={14} /> Financial Statements</button>
           </div>
         </div>
       </div>

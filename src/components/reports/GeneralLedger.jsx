@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react'
 import { useApp } from '../../store/AppContext'
 import { fmt, today, typeBadge } from '../../utils/format'
-import { BookMarked } from 'lucide-react'
+import { exportToExcel } from '../../utils/exportExcel'
+import { BookMarked, Download } from 'lucide-react'
 
 function getDefaultDates() {
   const end = today()
@@ -129,6 +130,18 @@ export default function GeneralLedger() {
   const totalDebits = ledgers.reduce((s, l) => s + l.rows.reduce((r, e) => r + e.debit, 0), 0)
   const totalCredits = ledgers.reduce((s, l) => s + l.rows.reduce((r, e) => r + e.credit, 0), 0)
 
+  const handleExport = () => {
+    const sheets = ledgers.map(({ acc, openingBalance, rows, closingBalance }) => ({
+      name: `${acc.code} ${acc.name}`.slice(0, 31),
+      rows: [
+        { Date: startDate, Ref: '', Description: 'Opening Balance', Department: '', Source: '', Debit: '', Credit: '', Balance: openingBalance },
+        ...rows.map(r => ({ Date: r.date, Ref: r.ref || '', Description: r.description, Department: r.department, Source: r.source, Debit: r.debit || '', Credit: r.credit || '', Balance: r.balance })),
+        { Date: endDate, Ref: '', Description: 'Closing Balance', Department: '', Source: '', Debit: '', Credit: '', Balance: closingBalance },
+      ],
+    }))
+    exportToExcel(sheets, `GeneralLedger_${startDate}_${endDate}`)
+  }
+
   return (
     <div>
       {/* Filters */}
@@ -181,6 +194,14 @@ export default function GeneralLedger() {
             onClick={() => setRange(getDefaultDates())}
           >
             Reset
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ marginBottom: 0 }}
+            onClick={handleExport}
+            disabled={ledgers.length === 0}
+          >
+            <Download size={13} /> Export Excel
           </button>
         </div>
       </div>

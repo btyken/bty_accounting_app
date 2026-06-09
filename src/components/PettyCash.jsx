@@ -6,7 +6,8 @@ import { DEPARTMENTS } from '../data/defaults'
 import Modal from './ui/Modal'
 import PieChart from './ui/PieChart'
 import DeleteAllModal from './ui/DeleteAllModal'
-import { Trash2, Wallet, X } from 'lucide-react'
+import { exportToExcel } from '../utils/exportExcel'
+import { Trash2, Wallet, X, FileText } from 'lucide-react'
 
 const BLANK_ENTRY = () => ({ id: uid(), accountId: '', debit: '', credit: '' })
 const BLANK = { date: today(), payee: '', purpose: '', department: '', receiptNo: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] }
@@ -31,6 +32,7 @@ export default function PettyCash() {
   const { data, addPettyCash, deletePettyCash, clearPettyCash } = useApp()
   const { isAdmin } = useAuth()
   const [modal, setModal]         = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [form, setForm]           = useState(BLANK)
   const [err, setErr]             = useState('')
@@ -158,6 +160,7 @@ export default function PettyCash() {
             {isAdmin && (
               <button className="btn btn-danger" onClick={() => setDeleteAllOpen(true)}><Trash2 size={13} /> Delete All</button>
             )}
+            <button className="btn btn-secondary" onClick={() => setReportOpen(true)}><FileText size={13} /> Petty Cash Report</button>
             <button className="btn btn-primary" onClick={openNew}>+ Add Petty Cash Entry</button>
           </div>
         </div>
@@ -429,6 +432,117 @@ export default function PettyCash() {
         onConfirm={clearPettyCash}
         label="Petty Cash Entries"
       />
+
+      {/* Petty Cash Report Modal */}
+      <Modal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title="Petty Cash Report"
+        size="modal-lg"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setReportOpen(false)}>Close</button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                const rows = [...filtered].reverse().map(p => ({
+                  Date: p.date,
+                  'Ref #': p.number || '',
+                  Payee: p.payee,
+                  Purpose: p.purpose,
+                  Department: p.department || '',
+                  'Receipt #': p.receiptNo || '',
+                  Amount: p.amount,
+                }))
+                exportToExcel([{ name: 'Petty Cash Report', rows }], `PettyCashReport_${today()}`)
+              }}
+            >
+              Export Excel
+            </button>
+            <button className="btn btn-primary" onClick={() => window.print()}>Print</button>
+          </>
+        }
+      >
+        <div style={{ textAlign: 'center', marginBottom: 20, paddingBottom: 16, borderBottom: '2px solid var(--border)' }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Petty Cash Report</div>
+          <h3 style={{ fontSize: 20, margin: '4px 0' }}>Petty Cash Disbursement Report</h3>
+          {range
+            ? <div className="text-muted text-sm">Period: {range[0]} — {range[1]}</div>
+            : <div className="text-muted text-sm">All Periods</div>
+          }
+        </div>
+
+        {/* Summary */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+          <div style={{ padding: '12px 16px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Total Records</div>
+            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{filtered.length}</div>
+          </div>
+          <div style={{ padding: '12px 16px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Total Disbursed</div>
+            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--neg)' }}>{fmt(total)}</div>
+          </div>
+          <div style={{ padding: '12px 16px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', textAlign: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Average per Entry</div>
+            <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{filtered.length ? fmt(total / filtered.length) : '₱0.00'}</div>
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px 0' }}>No petty cash entries for this period.</div>
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th><th>Ref #</th><th>Payee</th><th>Purpose</th>
+                  <th>Department</th><th>Receipt #</th><th className="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...filtered].reverse().map(p => (
+                  <tr key={p.id}>
+                    <td className="text-muted">{p.date}</td>
+                    <td className="text-muted">{p.number}</td>
+                    <td><strong>{p.payee}</strong></td>
+                    <td>{p.purpose}</td>
+                    <td className="text-muted">{p.department || '—'}</td>
+                    <td className="text-muted">{p.receiptNo || '—'}</td>
+                    <td className="text-right amount-neg"><strong>{fmt(p.amount)}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: 'var(--gold-soft)', fontWeight: 700, borderTop: '2px solid var(--border)' }}>
+                  <td colSpan={6} style={{ textAlign: 'right', paddingRight: 14 }}>TOTAL DISBURSED</td>
+                  <td className="text-right amount-neg">{fmt(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* Department Breakdown in report */}
+        {deptRows.length > 0 && (
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 700, marginBottom: 10, fontSize: 13, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--muted)' }}>By Department</div>
+            <table>
+              <thead>
+                <tr><th>Department</th><th className="text-right">Amount</th><th className="text-right">%</th></tr>
+              </thead>
+              <tbody>
+                {deptRows.map(row => (
+                  <tr key={row.label}>
+                    <td>{row.label}</td>
+                    <td className="text-right amount-neg">{fmt(row.value)}</td>
+                    <td className="text-right">{row.pct.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

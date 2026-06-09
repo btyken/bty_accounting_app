@@ -1,6 +1,8 @@
 import React from 'react'
 import { useApp } from '../../store/AppContext'
-import { fmt } from '../../utils/format'
+import { fmt, today } from '../../utils/format'
+import { exportToExcel } from '../../utils/exportExcel'
+import { Download } from 'lucide-react'
 import PieChart from '../ui/PieChart'
 
 const COLORS = [
@@ -66,6 +68,21 @@ export default function ProfitLoss() {
   const totalExpenses = expenseAccs.reduce((s, a) => s + a.balance, 0)
   const netIncome = totalRevenue - totalExpenses
 
+  const handleExport = () => {
+    const rows = [
+      { Section: 'INCOME', Account: '', Amount: '' },
+      ...revenueAccs.map(a => ({ Section: '', Account: `${a.code} — ${a.name}`, Amount: a.balance })),
+      { Section: 'Total Income', Account: '', Amount: totalRevenue },
+      { Section: '', Account: '', Amount: '' },
+      { Section: 'EXPENSES', Account: '', Amount: '' },
+      ...expenseAccs.map(a => ({ Section: '', Account: `${a.code} — ${a.name}`, Amount: a.balance })),
+      { Section: 'Total Expenses', Account: '', Amount: totalExpenses },
+      { Section: '', Account: '', Amount: '' },
+      { Section: 'NET INCOME', Account: '', Amount: netIncome },
+    ]
+    exportToExcel([{ name: 'Profit & Loss', rows }], `ProfitLoss_${today()}`)
+  }
+
   const revenueFiltered = revenueAccs.filter(a => a.balance >= 0.005)
   const revenueFilteredTotal = revenueFiltered.reduce((s, a) => s + a.balance, 0)
   const revenueSlices = revenueFiltered
@@ -78,6 +95,9 @@ export default function ProfitLoss() {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button className="btn btn-secondary" onClick={handleExport}><Download size={13} /> Export Excel</button>
+      </div>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Financial Report</div>
         <h2 style={{ fontSize: 22, margin: '4px 0' }}>Profit &amp; Loss Statement</h2>

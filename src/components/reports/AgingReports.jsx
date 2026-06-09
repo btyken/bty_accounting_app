@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useApp } from '../../store/AppContext'
-import { fmt } from '../../utils/format'
-import { CheckCircle2, ClipboardList } from 'lucide-react'
+import { fmt, today } from '../../utils/format'
+import { exportToExcel } from '../../utils/exportExcel'
+import { CheckCircle2, ClipboardList, Download } from 'lucide-react'
 
 const BUCKETS = [
   { id: 'current', label: 'Current (Not Yet Due)' },
@@ -314,15 +315,58 @@ export default function AgingReports() {
   const { data } = useApp()
   const [tab, setTab] = useState('ar')
 
+  const handleExport = () => {
+    if (tab === 'ar') {
+      const unpaid = (data.invoices || []).filter(i => i.status !== 'paid')
+      const rows = unpaid.map(inv => {
+        const days = daysDiff(inv.dueDate || inv.date)
+        return {
+          Customer: inv.customer,
+          'Invoice #': inv.number,
+          'Invoice Date': inv.date,
+          'Due Date': inv.dueDate || '',
+          'Days Past Due': days > 0 ? days : 0,
+          Status: inv.status,
+          Amount: inv.total,
+          'Age Bucket': BUCKETS.find(b => b.id === ageBucket(days))?.label || '',
+        }
+      })
+      exportToExcel([{ name: 'AR Aging', rows }], `AR_Aging_${today()}`)
+    } else {
+      const apAccounts = data.accounts.filter(a => a.type === 'Liability')
+      const apAccountIds = new Set(apAccounts.map(a => a.id))
+      const rows = []
+      ;(data.transactions || []).forEach(txn => {
+        txn.entries.forEach(e => {
+          if (!apAccountIds.has(e.accountId) || e.credit <= 0) return
+          const days = daysDiff(txn.date)
+          rows.push({
+            Date: txn.date,
+            Reference: txn.ref,
+            Description: txn.description,
+            Account: apAccounts.find(a => a.id === e.accountId)?.name || '',
+            'Days Since Posted': days,
+            Amount: e.credit,
+            'Age Bucket': BUCKETS.find(b => b.id === ageBucket(days))?.label || '',
+          })
+        })
+      })
+      exportToExcel([{ name: 'AP Aging', rows }], `AP_Aging_${today()}`)
+    }
+  }
+
   return (
     <div>
-      <div className="tabs" style={{ marginBottom: 24 }}>
-        <div className={`tab${tab === 'ar' ? ' active' : ''}`} onClick={() => setTab('ar')}>
-          AR Aging — Accounts Receivable
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 10 }}>
+        <div className="tabs" style={{ marginBottom: 0 }}>
+          <div className={`tab${tab === 'ar' ? ' active' : ''}`} onClick={() => setTab('ar')}>
+            AR Aging — Accounts Receivable
+          </div>
+          <div className={`tab${tab === 'ap' ? ' active' : ''}`} onClick={() => setTab('ap')}>
+            AP Aging — Accounts Payable
+          </div>
         </div>
-        <div className={`tab${tab === 'ap' ? ' active' : ''}`} onClick={() => setTab('ap')}>
-          AP Aging — Accounts Payable
-        </div>
+        <button className="btn btn-secondary" onClick={handleExport}><Download size={13} /> Export Excel</button>
       </div>
       {tab === 'ar' && <ARaging data={data} />}
       {tab === 'ap' && <APaging data={data} />}

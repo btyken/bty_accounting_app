@@ -20,9 +20,10 @@ const PERIODS = [
 ]
 
 export default function Transactions() {
-  const { data, addTransaction, updateTransactionMeta, deleteTransaction, importTransactions, clearTransactions } = useApp()
+  const { data, addTransaction, updateTransaction, updateTransactionMeta, deleteTransaction, importTransactions, clearTransactions } = useApp()
   const { isAdmin } = useAuth()
   const [modal, setModal]     = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [form, setForm]       = useState({ date: today(), ref: '', description: '', department: '', entries: [BLANK_ENTRY(), BLANK_ENTRY()] })
@@ -33,12 +34,25 @@ export default function Transactions() {
   const [dateTo,   setDateTo]   = useState('')
 
   const openNew = () => {
+    setEditingId(null)
     setForm({
       date: today(),
       ref: 'JE-' + pad(data.transactions.length + 1),
       description: '',
       department: '',
       entries: [BLANK_ENTRY(), BLANK_ENTRY()],
+    })
+    setErr(''); setModal(true)
+  }
+
+  const openEdit = (txn) => {
+    setEditingId(txn.id)
+    setForm({
+      date: txn.date,
+      ref: txn.ref,
+      description: txn.description,
+      department: txn.department || '',
+      entries: txn.entries.map(e => ({ id: uid(), accountId: e.accountId, debit: e.debit || '', credit: e.credit || '' })),
     })
     setErr(''); setModal(true)
   }
@@ -61,7 +75,12 @@ export default function Transactions() {
     const entries = form.entries.filter(e => e.accountId && (parseFloat(e.debit) || parseFloat(e.credit)))
     if (entries.length < 2) return setErr('At least two entries required.')
     if (!balanced)          return setErr('Debits must equal credits.')
-    addTransaction({ id: uid(), date: form.date, ref: form.ref, description: form.description, department: form.department, entries: entries.map(e => ({ accountId: e.accountId, debit: parseFloat(e.debit)||0, credit: parseFloat(e.credit)||0 })) })
+    const cleanEntries = entries.map(e => ({ accountId: e.accountId, debit: parseFloat(e.debit)||0, credit: parseFloat(e.credit)||0 }))
+    if (editingId) {
+      updateTransaction(editingId, { date: form.date, ref: form.ref, description: form.description, department: form.department, entries: cleanEntries })
+    } else {
+      addTransaction({ id: uid(), date: form.date, ref: form.ref, description: form.description, department: form.department, entries: cleanEntries })
+    }
     setModal(false)
   }
 
@@ -213,7 +232,8 @@ export default function Transactions() {
                       </td>
                       <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.debit||0),0))}</td>
                       <td className="text-right">{fmt(t.entries.reduce((s,e)=>s+(e.credit||0),0))}</td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button className="btn btn-secondary btn-xs" style={{ marginRight: 4 }} onClick={() => openEdit(t)}>Edit</button>
                         <button className="btn btn-danger btn-xs" onClick={() => { if (confirm('Delete this journal entry? Account balances will be reversed.')) deleteTransaction(t.id) }}>Delete</button>
                       </td>
                     </tr>
@@ -229,12 +249,14 @@ export default function Transactions() {
       <Modal
         open={modal}
         onClose={() => setModal(false)}
-        title="New Journal Entry"
+        title={editingId ? 'Edit Journal Entry' : 'New Journal Entry'}
         size="modal-lg"
         footer={
           <>
             <button className="btn btn-secondary" onClick={() => setModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={save} disabled={!balanced && form.entries.some(e=>e.accountId)}>Post Entry</button>
+            <button className="btn btn-primary" onClick={save} disabled={!balanced && form.entries.some(e=>e.accountId)}>
+              {editingId ? 'Save Changes' : 'Post Entry'}
+            </button>
           </>
         }
       >

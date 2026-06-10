@@ -58,7 +58,7 @@ export default function Accounts() {
             <thead>
               <tr>
                 <th>Code</th><th>Account Name</th><th>Type</th>
-                <th className="text-right">Balance</th><th className="text-right">Actions</th>
+                <th className="text-right">Balance</th>
               </tr>
             </thead>
             <tbody>
@@ -67,17 +67,13 @@ export default function Accounts() {
                 if (!accs.length) return null
                 return (
                   <React.Fragment key={type}>
-                    <tr className="acc-type-header"><td colSpan={5}>{TYPE_LABEL[type]}</td></tr>
+                    <tr className="acc-type-header"><td colSpan={4}>{TYPE_LABEL[type]}</td></tr>
                     {accs.map(a => (
                       <tr key={a.id}>
                         <td className="text-muted">{a.code}</td>
                         <td><strong>{a.name}</strong></td>
                         <td><span className={`badge ${typeBadge(a.type)}`}>{a.type}</span></td>
                         <td className="text-right">{fmt(a.balance)}</td>
-                        <td className="text-right" style={{ whiteSpace: 'nowrap' }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(a)}>Edit</button>{' '}
-                          <button className="btn btn-danger btn-sm" onClick={() => del(a.id)}>Delete</button>
-                        </td>
                       </tr>
                     ))}
                   </React.Fragment>

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../store/AuthContext'
 import Modal from './ui/Modal'
+import { issuesFor, groupIssues, rowObj, peso } from './tracker/fixes'
 import {
-  RefreshCw, ExternalLink, Search, AlertTriangle, Sheet, Clock, CheckCircle2, Plug,
+  RefreshCw, ExternalLink, Search, AlertTriangle, Sheet, Clock, CheckCircle2, Plug, Wrench, ChevronDown, ChevronRight, User,
 } from 'lucide-react'
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1gV5PH9xsEuVpbINpkSCy-a4Wcrm3ZpBtDKuuzazkRLA/edit'
@@ -154,7 +155,7 @@ export default function RequisitionTracker() {
         ))}
       </div>
 
-      {tab === 'overview' && <Overview data={data} onGo={setTab} />}
+      {tab === 'overview' && <Overview data={data} onGo={setTab} onOpen={(row) => setDetail({ headers: data.requests.headers, row })} />}
 
       {tab === 'requests' && (
         <SheetTable
@@ -229,6 +230,7 @@ export default function RequisitionTracker() {
       )}
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail ? `${detail.row[0]} · ${detail.row[6] || ''}` : ''} size="modal-lg">
+        {detail && <DetailFixes headers={detail.headers} row={detail.row} />}
         {detail && (
           <div className="detail-grid">
             {detail.headers.map((h, i) => h && (
@@ -244,9 +246,83 @@ export default function RequisitionTracker() {
   )
 }
 
+/* ── Recommended fixes ───────────────────────────────────── */
+
+function NeedsAttention({ data, onOpen }) {
+  const headers = data.requests?.headers || []
+  const rows = data.requests?.rows || []
+  const groups = useMemo(() => groupIssues(headers, rows), [headers, rows])
+  const [open, setOpen] = useState(() => new Set(groups.slice(0, 1).map(g => g.key)))
+  const toggle = (k) => setOpen(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
+
+  return (
+    <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card-head">
+        <h3><Wrench size={15} style={{ verticalAlign: -2, marginRight: 8 }} />Needs attention</h3>
+        <span className="chip">{groups.length === 0 ? 'All clear' : `${groups.reduce((n, g) => n + g.items.length, 0)} items · ${groups.length} type${groups.length === 1 ? '' : 's'}`}</span>
+      </div>
+      {groups.length === 0 && (
+        <div className="fix-clear"><CheckCircle2 size={16} /> Every request is closed or reconciled. Nothing to fix.</div>
+      )}
+      {groups.map(g => {
+        const isOpen = open.has(g.key)
+        const sameFix = g.items.every(it => it.fix === g.items[0].fix)
+        const shared = g.groupFix && g.items.length > 1 ? g.groupFix : (sameFix ? g.items[0].fix : null)
+        return (
+          <div key={g.key} className={`fix-group${isOpen ? ' open' : ''}`}>
+            <button className="fix-head" onClick={() => toggle(g.key)}>
+              {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+              <span className="fix-title">{g.title}</span>
+              <span className="fix-meta">{g.items.length} request{g.items.length === 1 ? '' : 's'}{g.total > 0 ? ` · ${peso(g.total)} open` : ''}</span>
+            </button>
+            {isOpen && (
+              <div className="fix-body">
+                {shared && <div className="fix-text"><strong>Recommended fix:</strong> {shared}</div>}
+                <div className="fix-items">
+                  {g.items.map(it => (
+                    <div key={it.id} className="fix-item" onClick={() => onOpen(it.row)}>
+                      <div className="fix-item-head">
+                        <span className="fix-id">{it.id}</span>
+                        <span className="fix-purpose">{it.r['Purpose / Particulars']}</span>
+                        <span className="fix-amt">{it.r['Open Balance'] && it.r['Open Balance'] !== '-' ? `${peso(parseFloat(String(it.r['Open Balance']).replace(/[(),]/g, '')))} open` : ''}</span>
+                      </div>
+                      {!shared && <div className="fix-text small">{it.fix}</div>}
+                      {shared && it.note && shared !== it.fix && <div className="fix-text small">{it.note}</div>}
+                      {it.owner && <div className="fix-owner"><User size={11} /> {it.owner}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function DetailFixes({ headers, row }) {
+  const issues = issuesFor(rowObj(headers, row))
+  if (issues.length === 0) {
+    return <div className="fix-clear" style={{ marginBottom: 14 }}><CheckCircle2 size={16} /> No open issues on this request.</div>
+  }
+  return (
+    <div className="fix-box">
+      <div className="fix-box-title"><Wrench size={14} /> What to do</div>
+      {issues.map((is, i) => (
+        <div key={i} className="fix-box-item">
+          <div className="fix-box-issue">{is.title}</div>
+          <div className="fix-text small">{is.fix}</div>
+          {is.owner && <div className="fix-owner"><User size={11} /> {is.owner}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /* ── Overview ─────────────────────────────────────────────── */
 
-function Overview({ data, onGo }) {
+function Overview({ data, onGo, onOpen }) {
   const pos = data.position || []
   const find = (re) => pos.find(p => re.test(p.measure))
   const tiles = [
@@ -271,6 +347,8 @@ function Overview({ data, onGo }) {
           </div>
         ))}
       </div>
+
+      <NeedsAttention data={data} onOpen={onOpen} />
 
       <div className="grid-2-1">
         <div className="card">

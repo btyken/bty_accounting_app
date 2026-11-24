@@ -2,7 +2,8 @@ import React from 'react'
 import { useAuth } from '../../store/AuthContext'
 import { LogOut, ShieldCheck, User, Users } from 'lucide-react'
 import { NAV } from './nav'
-import mark from '../../assets/logo-mark.svg'
+import logoFull from '../../assets/logo-full.svg'
+import logoMark from '../../assets/logo-mark-dark.svg'
 
 export default function Sidebar({ page, onNavigate, collapsed }) {
   const { currentUser, logout, isAdmin, reportAccess } = useAuth()
@@ -11,11 +12,9 @@ export default function Sidebar({ page, onNavigate, collapsed }) {
     <nav className={`sidebar${collapsed ? ' collapsed' : ''}`}>
       {/* Brand */}
       <div className="sidebar-brand">
-        <div className="brand-mark"><img src={mark} alt="" /></div>
-        <div className="brand-text">
-          <div className="brand-name">Spartan BTY</div>
-          <div className="brand-sub">Accounting</div>
-        </div>
+        <img src={logoFull} alt="Spartan BTY Inc." className="brand-logo" />
+        <img src={logoMark} alt="Spartan BTY Inc." className="brand-logo-mark" />
+        <div className="brand-sub">Accounting</div>
       </div>
 
       <div className="sidebar-scroll">

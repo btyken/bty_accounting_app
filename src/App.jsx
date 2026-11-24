@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Printer, Lock } from 'lucide-react'
 import { TITLES, sectionOf } from './components/layout/nav'
-import mark from './assets/logo-mark.svg'
+import logoFull from './assets/logo-full.svg'
 import { AppProvider, useApp } from './store/AppContext'
 import { AuthProvider, useAuth } from './store/AuthContext'
 import Sidebar from './components/layout/Sidebar'
@@ -54,7 +54,7 @@ function AppInner() {
   if (!appReady || (!currentUser && users === null)) {
     return (
       <div className="splash">
-        <div className="brand-mark brand-mark-lg"><img src={mark} alt="" /></div>
+        <img src={logoFull} alt="Spartan BTY Inc." className="splash-logo" />
         <div className="splash-text">Loading Spartan BTY Accounting…</div>
       </div>
     )

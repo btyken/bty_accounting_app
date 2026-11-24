@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../store/AuthContext'
 import Modal from './ui/Modal'
 import { issuesFor, groupIssues, rowObj, peso } from './tracker/fixes'
+import EntryForm, { newRequestInitial, stepInitial, receiptInitial } from './tracker/EntryForms'
 import {
-  RefreshCw, ExternalLink, Search, AlertTriangle, Sheet, Clock, CheckCircle2, Plug, Wrench, ChevronDown, ChevronRight, User,
+  RefreshCw, ExternalLink, Search, AlertTriangle, Sheet, Clock, CheckCircle2, Plug, Wrench, ChevronDown, ChevronRight, User, Plus, FilePlus2, ClipboardCheck, Send, Wallet, Pencil, CheckCircle,
 } from 'lucide-react'
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1gV5PH9xsEuVpbINpkSCy-a4Wcrm3ZpBtDKuuzazkRLA/edit'
@@ -14,6 +15,7 @@ let memo = { data: null, at: 0 }
 const TABS = [
   { id: 'overview',       label: 'Overview' },
   { id: 'requests',       label: 'Requests' },
+  { id: 'receipts',       label: 'Receipts' },
   { id: 'unliquidated',   label: 'Unliquidated' },
   { id: 'reconciliation', label: 'Reconciliation' },
   { id: 'bank',           label: 'Bank Recon' },
@@ -31,6 +33,10 @@ const UNLIQ_COLS = [
 const RECON_COLS = [
   'Request ID', 'Result', 'Release Date', 'Requested By', 'Payee', 'Reference No.', 'Amount Requested',
   'Amount Released', 'Amount in Disbursement Book', 'Amount in Bank Statement', 'Receipts Total', 'Open Balance',
+]
+const RECEIPT_COLS = [
+  'Request ID', 'Receipt Date', 'OR / Invoice No.', 'Supplier Name', 'Account Title', 'Amount (receipt total)',
+  'VATABLE SALES', 'VAT (Input Tax)', 'Expense Amount (net of VAT)', 'Expanded Withholding Tax', 'Vendor List Check',
 ]
 const BANK_COLS = [
   'Posted Date', 'Status', 'Description', 'Debit', 'Credit', 'Transaction ID', 'Request ID', 'Remarks',
@@ -99,6 +105,42 @@ export default function RequisitionTracker() {
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [detail, setDetail] = useState(null)
+  const [form, setForm] = useState(null)
+  const [toast, setToast] = useState('')
+  const canWrite = !!data?.canWrite
+
+  const openStep = (kind, row) => {
+    const headers = data.requests.headers
+    const r = rowObj(headers, row)
+    const id = r['Request ID']
+    const ctx = {}
+    if (kind === 'release') {
+      const wht = parseFloat(String(r['Withholding Tax on Receipts'] || '0').replace(/,/g, '')) || 0
+      ctx.expected = wht > 0 ? `${r['Amount Requested']} less ${r['Withholding Tax on Receipts']} withholding tax` : r['Amount Requested']
+    }
+    ctx.summary = `${id} · ${r['Requested By']} · ${r['Purpose / Particulars']} · ₱${r['Amount Requested']} · ${r['Status']}`
+    const initial = kind === 'receipt' ? receiptInitial(r) : stepInitial(headers, row, kind)
+    if (kind === 'release' && !initial.amountReleased) initial.amountReleased = String(r['Amount Requested'] || '').replace(/,/g, '')
+    setDetail(null)
+    setForm({ kind, requestId: id, initial, context: ctx })
+  }
+  const openNewRequest = () => setForm({ kind: 'newRequest', initial: newRequestInitial(), context: {} })
+  const openNewReceipt = () => {
+    const h = data.requests.headers
+    const requestOptions = data.requests.rows
+      .map(row => rowObj(h, row))
+      .filter(r => r['Authorization'] !== 'Rejected')
+      .map(r => ({ id: r['Request ID'], purpose: r['Purpose / Particulars'], payee: r['Payee / Supplier'], account: r['Account to Charge'] }))
+      .reverse()
+    setForm({ kind: 'receipt', initial: { ...receiptInitial({}), supplier: '', requestId: '' }, context: { requestOptions } })
+  }
+  const onSaved = (res, f) => {
+    setForm(null)
+    const what = { newRequest: 'New request', request: 'Request details', process: 'Processing', release: 'Release', liquidate: 'Liquidation', receipt: 'Receipt' }[f.kind]
+    setToast(`${what} saved to the sheet${res.requestId ? ` · ${res.requestId}` : ''}. Refreshing…`)
+    setTimeout(() => setToast(''), 5000)
+    reload()
+  }
 
   useEffect(() => { setQ(''); setStatusFilter('') }, [tab])
 
@@ -144,6 +186,13 @@ export default function RequisitionTracker() {
       {error && (
         <div className="tracker-alert"><AlertTriangle size={15} /> Couldn't refresh ({error}). Showing the last copy loaded.</div>
       )}
+      {toast && <div className="tracker-toast"><CheckCircle size={15} /> {toast}</div>}
+      {!canWrite && (
+        <div className="tracker-note">Entry from the app turns on once the sheet script is updated. Until then this page is read-only.</div>
+      )}
+      {form && (
+        <EntryForm form={form} lists={data.lists} userId={currentUser?.id} onClose={() => setForm(null)} onSaved={onSaved} />
+      )}
 
       <div className="tabs">
         {TABS.map(t => (
@@ -157,6 +206,12 @@ export default function RequisitionTracker() {
 
       {tab === 'overview' && <Overview data={data} onGo={setTab} onOpen={(row) => setDetail({ headers: data.requests.headers, row })} />}
 
+      {tab === 'requests' && canWrite && (
+        <div className="tab-actions">
+          <button className="btn btn-primary" onClick={openNewRequest}><Plus size={15} /> New request</button>
+          <span className="text-muted text-sm">Open a request to process, release, liquidate or add receipts.</span>
+        </div>
+      )}
       {tab === 'requests' && (
         <SheetTable
           table={data.requests}
@@ -167,6 +222,20 @@ export default function RequisitionTracker() {
           onRow={(row) => setDetail({ headers: data.requests.headers, row })}
           empty="No requests in the sheet yet."
         />
+      )}
+
+      {tab === 'receipts' && (
+        <>
+          {canWrite && (
+            <div className="tab-actions">
+              <button className="btn btn-primary" onClick={openNewReceipt}><FilePlus2 size={15} /> Add receipt</button>
+              <span className="text-muted text-sm">VAT split, withholding tax and journal postings calculate in the sheet.</span>
+            </div>
+          )}
+          {data.receipts
+            ? <SheetTable table={data.receipts} columns={RECEIPT_COLS} badgeColumns={['Vendor List Check']} q={q} setQ={setQ} empty="No receipts recorded yet." />
+            : <div className="card"><p className="text-muted">Receipts appear here once the sheet script is updated.</p></div>}
+        </>
       )}
 
       {tab === 'unliquidated' && (
@@ -229,7 +298,8 @@ export default function RequisitionTracker() {
         </>
       )}
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail ? `${detail.row[0]} · ${detail.row[6] || ''}` : ''} size="modal-lg">
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail ? `${detail.row[0]} · ${detail.row[6] || ''}` : ''} size="modal-lg"
+        footer={detail && canWrite ? <StepActions headers={detail.headers} row={detail.row} onStep={openStep} /> : null}>
         {detail && <DetailFixes headers={detail.headers} row={detail.row} />}
         {detail && (
           <div className="detail-grid">
@@ -242,6 +312,28 @@ export default function RequisitionTracker() {
           </div>
         )}
       </Modal>
+    </div>
+  )
+}
+
+/* ── Step buttons for one request ─────────────────────────── */
+
+function StepActions({ headers, row, onStep }) {
+  const r = rowObj(headers, row)
+  const approved = r['Authorization'] === 'Approved'
+  const rejected = r['Authorization'] === 'Rejected'
+  const released = !!String(r['Release Date'] || '').trim()
+  const isCA = r['Request Type'] === 'Cash Advance'
+  return (
+    <div className="step-actions">
+      <button className="btn btn-secondary btn-sm" onClick={() => onStep('request', row)}><Pencil size={13} /> Edit details</button>
+      <button className="btn btn-secondary btn-sm" onClick={() => onStep('process', row)}><ClipboardCheck size={13} /> Processing</button>
+      <button className="btn btn-secondary btn-sm" onClick={() => onStep('release', row)} disabled={!approved}
+        title={approved ? '' : rejected ? 'Rejected by Ma\'am Mia' : 'Waiting for Ma\'am Mia\'s approval in the sheet'}>
+        <Send size={13} /> Release
+      </button>
+      {isCA && <button className="btn btn-secondary btn-sm" onClick={() => onStep('liquidate', row)} disabled={!released}><Wallet size={13} /> Liquidation</button>}
+      <button className="btn btn-primary btn-sm" onClick={() => onStep('receipt', row)} disabled={rejected}><FilePlus2 size={13} /> Add receipt</button>
     </div>
   )
 }

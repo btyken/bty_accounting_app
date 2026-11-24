@@ -204,7 +204,7 @@ tr:hover td { background: var(--hover); }
 .modal-close { background: var(--side-bg); border: none; cursor: pointer; color: var(--muted); line-height: 1; padding: 7px; border-radius: 9px; display: flex; align-items: center; }
 .modal-close:hover { color: var(--text); }
 .modal-body { padding: 20px 26px; }
-.modal-footer { padding: 0 26px 22px; display: flex; justify-content: flex-end; gap: 10px; }
+.modal-footer { padding: 14px 26px 18px; display: flex; justify-content: flex-end; gap: 10px; position: sticky; bottom: 0; background: var(--card); border-top: 1px solid var(--border); z-index: 2; }
 
 /* Page header */
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
@@ -404,6 +404,22 @@ a.btn { text-decoration: none; }
 .fix-box-item { padding: 6px 0; }
 .fix-box-item + .fix-box-item { border-top: 1px solid rgba(184,146,63,.2); }
 .fix-box-issue { font-weight: 700; color: var(--ink); font-size: 14px; }
+
+/* Entry forms */
+.tab-actions { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.tracker-toast { display: flex; align-items: center; gap: 8px; background: var(--pos-bg); color: var(--pos); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; font-weight: 600; margin-bottom: 14px; }
+.tracker-note { background: var(--side-bg); border: 1px dashed var(--border-strong); color: var(--muted); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.form-grid .form-group { margin-bottom: 14px; }
+.field-hint { font-size: 11.5px; color: var(--faint); margin-top: 5px; line-height: 1.4; }
+.form-context { display: flex; gap: 8px; align-items: flex-start; background: var(--side-bg); border-radius: 10px; padding: 10px 13px; font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+.form-error { display: flex; gap: 8px; align-items: flex-start; background: var(--neg-bg); color: var(--neg); border-radius: 10px; padding: 10px 13px; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
+.form-foot-note { font-size: 11.5px; color: var(--faint); margin-top: 4px; }
+.form-more summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--gold-deep); margin-bottom: 4px; }
+.check-row { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text); margin-top: 10px; cursor: pointer; line-height: 1.4; }
+.check-row input { margin-top: 2px; accent-color: var(--ink); }
+.step-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; width: 100%; }
+textarea.form-input { resize: vertical; font-family: var(--font); }
 
 /* ── Smaller screens ───────────────────────────────────── */
 @media (max-width: 1200px) {

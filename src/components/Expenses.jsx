@@ -134,7 +134,7 @@ export default function Expenses() {
       </div>
 
       {/* Source tabs */}
-      <div className="tabs" style={{ marginBottom: 0, borderBottom: 'none' }}>
+      <div className="tabs" style={{ marginBottom: 14 }}>
         {[
           { id: 'all',     label: `All (${filteredExpenses.length + journalRows.length})` },
           { id: 'direct',  label: `Direct Expenses (${filteredExpenses.length})` },
@@ -147,7 +147,7 @@ export default function Expenses() {
       </div>
 
       {/* Expenses table */}
-      <div className="card" style={{ borderTopLeftRadius: 0 }}>
+      <div className="card">
         {viewData.length === 0
           ? (
             <div className="empty">

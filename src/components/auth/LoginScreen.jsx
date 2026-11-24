@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../store/AuthContext'
 import logo from '../../assets/name-logo.svg'
+import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
 
 export default function LoginScreen() {
   const { login, loginError, setLoginError } = useAuth()
@@ -17,42 +18,16 @@ export default function LoginScreen() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: '#000000',
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      padding: '40px 24px',
-    }}>
-      <div style={{
-        background: '#fff',
-        borderRadius: 10,
-        boxShadow: '0 4px 24px rgba(0,0,0,.4)',
-        width: '100%',
-        maxWidth: 400,
-        padding: '36px 36px 40px',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img
-            src={logo}
-            alt="Spartan BTY Inc."
-            style={{ width: 260, display: 'block', margin: '0 auto' }}
-          />
-        </div>
+    <div className="login-page">
+      <div className="login-card">
+        <img src={logo} alt="Spartan BTY Inc." className="login-logo" />
 
-        <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>Sign in</div>
-        <div style={{ color: '#6b7280', fontSize: 13, marginBottom: 24 }}>
-          Enter your credentials to continue.
-        </div>
+        <div className="login-title">Welcome back</div>
+        <div className="login-sub">Sign in to Spartan BTY Accounting.</div>
 
         {loginError && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7,
-            padding: '10px 14px', marginBottom: 18, color: '#dc2626', fontSize: 13,
-          }}>
-            ⚠️ {loginError}
+          <div className="login-error">
+            <AlertCircle size={15} strokeWidth={2} /> {loginError}
           </div>
         )}
 
@@ -80,33 +55,26 @@ export default function LoginScreen() {
                 autoComplete="current-password"
                 onChange={e => { setPassword(e.target.value); setLoginError('') }}
                 placeholder="Enter your password"
-                style={{ paddingRight: 42 }}
+                style={{ paddingRight: 44 }}
               />
               <button
                 type="button"
+                className="pw-toggle"
                 onClick={() => setShowPw(v => !v)}
-                style={{
-                  position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                  background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#9ca3af',
-                  lineHeight: 1,
-                }}
                 tabIndex={-1}
+                aria-label={showPw ? 'Hide password' : 'Show password'}
               >
-                {showPw ? '🙈' : '👁️'}
+                {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '10px', fontSize: 14, justifyContent: 'center', marginTop: 6 }}
-          >
-            {loading ? '⏳ Signing in…' : 'Sign In'}
+          <button type="submit" disabled={loading} className="btn btn-primary login-btn">
+            {loading ? <><Loader2 size={16} className="spin" /> Signing in…</> : 'Sign In'}
           </button>
         </form>
       </div>
+      <div className="login-foot">© {new Date().getFullYear()} Spartan BTY Inc.</div>
     </div>
   )
 }

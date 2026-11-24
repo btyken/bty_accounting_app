@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { Printer, Lock } from 'lucide-react'
+import { TITLES, sectionOf } from './components/layout/nav'
+import mark from './assets/logo-mark.svg'
 import { AppProvider, useApp } from './store/AppContext'
 import { AuthProvider, useAuth } from './store/AuthContext'
 import Sidebar from './components/layout/Sidebar'
@@ -29,7 +31,7 @@ function AccessRestricted() {
       <div className="empty">
         <div className="empty-icon"><Lock size={32} /></div>
         <p style={{ fontWeight: 600 }}>Access Restricted</p>
-        <p style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>
+        <p style={{ fontSize: 13, color: 'var(--faint)', marginTop: 4 }}>
           You don't have permission to view this report.<br />Contact your administrator to request access.
         </p>
       </div>
@@ -41,14 +43,19 @@ function AppInner() {
   const { currentUser, users, isAdmin, reportAccess } = useAuth()
   const { appReady } = useApp()
   const [page, setPage] = useState('dashboard')
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('bty_sidebar_collapsed') === '1' } catch { return false }
+  })
+  const toggleSidebar = () => setCollapsed(c => {
+    try { localStorage.setItem('bty_sidebar_collapsed', c ? '0' : '1') } catch { /* ignore */ }
+    return !c
+  })
 
   if (!appReady || (!currentUser && users === null)) {
     return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#111111', color: '#fff', fontSize: 16, gap: 12,
-      }}>
-        Loading…
+      <div className="splash">
+        <div className="brand-mark brand-mark-lg"><img src={mark} alt="" /></div>
+        <div className="splash-text">Loading Spartan BTY Accounting…</div>
       </div>
     )
   }
@@ -57,7 +64,7 @@ function AppInner() {
   if (!currentUser) return <LoginScreen />
 
   const topbarActions = PRINT_PAGES.includes(page)
-    ? <button className="btn btn-secondary" onClick={() => window.print()}><Printer size={14} /> Print</button>
+    ? <button className="btn btn-primary" onClick={() => window.print()}><Printer size={15} /> Print / Save PDF</button>
     : null
 
   const renderPage = () => {
@@ -85,11 +92,22 @@ function AppInner() {
 
   return (
     <div className="app">
-      <Sidebar page={page} onNavigate={setPage} />
+      <Sidebar page={page} onNavigate={setPage} collapsed={collapsed} />
       <div className="main">
-        <Topbar page={page} actions={topbarActions} />
-        <div className="content">
-          {renderPage()}
+        <Topbar page={page} actions={topbarActions} collapsed={collapsed} onToggleSidebar={toggleSidebar} />
+        <div className="canvas">
+          <div className="canvas-bar">
+            <div className="canvas-dots"><span /><span /><span /></div>
+            <div className="canvas-tab">
+              <span className="canvas-tab-section">{sectionOf(page)}</span>
+              <span className="canvas-tab-sep">/</span>
+              {TITLES[page] || page}
+            </div>
+            <div className="canvas-meta">{isAdmin ? 'Admin view' : 'Member view'}</div>
+          </div>
+          <div className="content" key={page}>
+            {renderPage()}
+          </div>
         </div>
       </div>
     </div>

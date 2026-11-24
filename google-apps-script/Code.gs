@@ -3,8 +3,11 @@
  *
  * The sheet is the database. The app reads it (doGet) and writes requisition
  * entries into it (doPost). Writes only ever touch the typing columns:
- *   REQUESTS B–M and P–Z (never A, N–O authorization, or the formula columns AA+)
+ *   REQUESTS B–Z and AJ–AL (never A or the formula columns AA–AI)
  *   RECEIPTS A–S (never the tax-breakdown formula columns T+)
+ * Release is proven by the bank statement: requests marked "sent to bank"
+ * (AJ–AL) are matched to BANK RECON lines and release + authorization are
+ * filled from the bank (Ma'am Mia approves inside RCBC).
  * Every write is recorded in the APP LOG tab (created on first use).
  *
  * Install / update: Extensions > Apps Script, paste this file, keep TRACKER_KEY
@@ -33,7 +36,11 @@ const REQ_FIELDS = {
     liquidationDate: 22, changeReturned: 23, changeReturnedTo: 24,
     paidBackToEmployee: 25, paidBackDate: 26,
   },
+  sent: { sentDate: 36, channel: 37, checkNo: 38 },
+  authorization: { authorization: 14, authorizationDate: 15 },
 }
+const REQ_WIDTH = 38
+const CHANNELS = ['InstaPay', 'PesoNET', 'Check', 'GCash', 'Cash', 'Other']
 
 const RCPT_FIELDS = {
   requestId: 1, receiptDate: 2, orNo: 3, supplier: 4, tin: 5, supplierCategory: 6,
@@ -42,7 +49,7 @@ const RCPT_FIELDS = {
   receiptType: 17, whtRate: 18, particulars: 19,
 }
 
-const DATE_FIELDS = ['dateRequested', 'dateNeeded', 'processedDate', 'releaseDate', 'liquidationDate', 'paidBackDate', 'receiptDate']
+const DATE_FIELDS = ['dateRequested', 'dateNeeded', 'processedDate', 'releaseDate', 'liquidationDate', 'paidBackDate', 'receiptDate', 'sentDate', 'authorizationDate']
 const NUMBER_FIELDS = ['amountRequested', 'amountReleased', 'bankCharges', 'changeReturned', 'paidBackToEmployee',
   'amount', 'nonVatPortion', 'exempt', 'discount', 'otherCharges', 'vatableAsPrinted', 'vatAsPrinted']
 const BOOL_FIELDS = ['bankConfirmedManually', 'vatRegistered']
@@ -52,7 +59,7 @@ const LIST_CHECKS = {
   department: 'departments', requestType: 'requestTypes', account: 'accounts',
   processingResult: 'processingResults', releasedFrom: 'cashAccounts', changeReturnedTo: 'cashAccounts',
   discountBasis: 'discountBases', receiptType: 'receiptTypes', supplierCategory: 'supplierCategories',
-  whtRate: 'whtRates',
+  whtRate: 'whtRates', channel: 'channels', authorization: 'authorization',
 }
 
 /* ─────────────────────────── READ ─────────────────────────── */
@@ -78,7 +85,8 @@ function snapshot_() {
     canWrite: true,
     position: currentPosition_(ss),
     lists: lists_(ss),
-    requests: table_(ss, 'REQUESTS', 4, 1, 35),
+    requests: table_(ss, 'REQUESTS', 4, 1, REQ_WIDTH),
+    bank: bankStatus_(ss),
     receipts: table_(ss, 'RECEIPTS', 4, 1, 36),
     unliquidated: Object.assign(
       { summary: summary_(ss, 'UNLIQUIDATED') },
@@ -165,6 +173,7 @@ function lists_(ss) {
     accounts: col('H2:H400'),
     cashAccounts: col('I2:I60'),
     whtRates: col('K10:K15'),
+    channels: CHANNELS,
     vendors: vendors,
   }
 }
@@ -187,6 +196,10 @@ function doPost(e) {
       case 'addRequest':    result = addRequest_(ss, lists, data); break
       case 'updateRequest': result = updateRequest_(ss, lists, body.step, data); break
       case 'addReceipt':    result = addReceipt_(ss, lists, data); break
+      case 'markSent':      result = markSent_(ss, lists, data); break
+      case 'markNotApproved': result = markNotApproved_(ss, lists, data); break
+      case 'proposeMatches': return json_(Object.assign({ ok: true }, proposeMatches_(ss)))
+      case 'applyMatches':  result = applyMatches_(ss, lists, data); break
       default: return json_({ error: 'unknown_action' })
     }
     SpreadsheetApp.flush()
@@ -194,7 +207,7 @@ function doPost(e) {
       log_(ss, body.user || '(unknown)', body.action + (body.step ? ':' + body.step : ''), result.requestId, result.sheet + '!' + result.row, data)
     } catch (logErr) { /* the entry is saved; never report it as failed because of the log */ }
     CacheService.getScriptCache().remove('tracker')
-    return json_({ ok: true, requestId: result.requestId, row: result.row })
+    return json_({ ok: true, requestId: result.requestId, row: result.row, applied: result.applied })
   } catch (err) {
     return json_({ error: 'invalid', message: String(err && err.message || err) })
   } finally {
@@ -219,14 +232,54 @@ function addRequest_(ss, lists, data) {
 
 function updateRequest_(ss, lists, step, data) {
   const map = REQ_FIELDS[step]
-  if (!map) throw new Error('Unknown step ' + step)
+  if (!map || step === 'sent' || step === 'authorization') throw new Error('Unknown step ' + step)
   const sh = ss.getSheetByName('REQUESTS')
   const row = findRequestRow_(sh, data.requestId)
   if (step === 'release') {
     const auth = String(sh.getRange(row, 14).getDisplayValue()).trim()
-    if (auth !== 'Approved') throw new Error(data.requestId + " is not approved yet (Authorization is '" + (auth || 'blank') + "'). Ma'am Mia approves in the sheet.")
+    if (auth === 'Rejected') throw new Error(data.requestId + ' is marked Rejected. Clear that first if it was approved after all.')
   }
   writeFields_(sh, row, map, data, lists)
+  // Manual release (GCash / cash / corrections): the release itself is the approval.
+  if (step === 'release' && data.releaseDate) {
+    const auth = String(sh.getRange(row, 14).getDisplayValue()).trim()
+    if (!auth || auth === 'On hold') {
+      sh.getRange(row, 14).setValue('Approved')
+      sh.getRange(row, 15).setValue(toDate_(data.releaseDate, 'releaseDate'))
+    }
+  }
+  return { sheet: 'REQUESTS', row: row, requestId: data.requestId }
+}
+
+function markSent_(ss, lists, data) {
+  const ids = Array.isArray(data.requestIds) ? data.requestIds : []
+  if (ids.length === 0) throw new Error('Pick at least one request')
+  if (data.sentDate && !data.channel) throw new Error('Pick the channel (InstaPay, PesoNET, Check…)')
+  if (data.channel === 'Check' && !String(data.checkNo || '').trim()) throw new Error('Enter the check number')
+  const sh = ss.getSheetByName('REQUESTS')
+  const rows = ids.map(id => {
+    const row = findRequestRow_(sh, id)
+    const r = sh.getRange(row, 1, 1, REQ_WIDTH).getDisplayValues()[0]
+    if (r[15]) throw new Error(id + ' is already released (' + r[15] + ')')
+    if (r[13] === 'Rejected') throw new Error(id + ' is Rejected')
+    if (data.sentDate && r[11] !== 'Processed') throw new Error(id + ' is not processed yet')
+    return row
+  })
+  const vals = { sentDate: data.sentDate || '', channel: data.sentDate ? data.channel : '', checkNo: data.sentDate && data.channel === 'Check' ? String(data.checkNo).trim() : '' }
+  rows.forEach(row => writeFields_(sh, row, REQ_FIELDS.sent, vals, lists))
+  return { sheet: 'REQUESTS', row: rows.join(','), requestId: ids.join(', ') }
+}
+
+function markNotApproved_(ss, lists, data) {
+  const sh = ss.getSheetByName('REQUESTS')
+  const row = findRequestRow_(sh, data.requestId)
+  if (sh.getRange(row, 16).getDisplayValue()) throw new Error(data.requestId + ' is already released')
+  const status = data.status === 'On hold' ? 'On hold' : 'Rejected'
+  writeFields_(sh, row, REQ_FIELDS.authorization, { authorization: status, authorizationDate: data.date || '' }, lists)
+  if (data.note) {
+    const cur = String(sh.getRange(row, 13).getDisplayValue())
+    sh.getRange(row, 13).setValue((cur ? cur + ' | ' : '') + data.note)
+  }
   return { sheet: 'REQUESTS', row: row, requestId: data.requestId }
 }
 
@@ -299,6 +352,279 @@ function log_(ss, user, action, requestId, where, data) {
     sh.getRange(1, 1, 1, 6).setFontWeight('bold')
   }
   sh.appendRow([new Date(), user, action, requestId || '', where, JSON.stringify(data)])
+}
+
+
+/* ───────────────────── BANK STATEMENT MATCHING ───────────────────── */
+
+const LAG_BANKING_DAYS = { InstaPay: 1, PesoNET: 2, Other: 2 } // checks: never "overdue"
+
+function asDate_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]') return isNaN(v) ? null : new Date(v.getFullYear(), v.getMonth(), v.getDate())
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(v || ''))
+  return m ? new Date(+m[3], +m[1] - 1, +m[2]) : null
+}
+function asNum_(v) {
+  if (typeof v === 'number') return v
+  const t = String(v || '').replace(/[,\s]/g, '')
+  if (!t || t === '-') return 0
+  const neg = /^\(.*\)$/.test(t)
+  const n = parseFloat(t.replace(/[()]/g, ''))
+  return isNaN(n) ? 0 : (neg ? -n : n)
+}
+function iso_(d) { return d ? d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) : '' }
+function cents_(n) { return Math.round(n * 100) }
+function bankingDaysAfter_(from, to) { // weekdays strictly after `from`, up to and including `to`
+  if (!from || !to || to <= from) return 0
+  let n = 0
+  const d = new Date(from.getTime())
+  while (true) { d.setDate(d.getDate() + 1); if (d > to) break; const w = d.getDay(); if (w !== 0 && w !== 6) n++ }
+  return n
+}
+function digits_(s) { return String(s || '').replace(/\D/g, '').replace(/^0+/, '') }
+
+// Bank lines from BANK RECON (already de-duplicated and grouped by the sheet).
+function bankPayments_(ss) {
+  const sh = ss.getSheetByName('BANK RECON')
+  if (!sh || sh.getLastRow() < 5) return { payments: [], coverage: {} }
+  const v = sh.getRange(5, 1, sh.getLastRow() - 4, 15).getValues()
+  const groups = {}
+  const coverage = {}
+  v.forEach((r, i) => {
+    const account = String(r[0] || '').trim()
+    const posted = asDate_(r[1])
+    if (!account || !posted) return
+    if (!coverage[account] || posted > coverage[account]) coverage[account] = posted
+    const debit = asNum_(r[3])
+    if (!(debit > 0)) return
+    const desc = String(r[2] || '').toUpperCase()
+    const line = { account: account, posted: posted, desc: desc, debit: debit, checkNo: String(r[6] || '').trim(),
+      txnId: String(r[7] || '').trim(), payOrder: String(r[8] || '').trim(), group: String(r[10] || r[7] || '').trim(), row: i + 5 }
+    if (/INWARD CLEARING/.test(desc)) {        // each check stands alone
+      const key = 'CHK:' + account + ':' + (line.checkNo || line.txnId)
+      groups[key] = { key: key, type: 'Check', lines: [line] }
+      return
+    }
+    const key = account + ':' + line.group
+    if (!groups[key]) groups[key] = { key: key, lines: [] }
+    groups[key].lines.push(line)
+  })
+  const payments = []
+  Object.keys(groups).forEach(k => {
+    const g = groups[k]
+    const isFee = (l) => /CHARGE/.test(l.desc) || (l.debit <= 25 && g.lines.some(o => o !== l && o.debit > 25))
+    const principal = g.lines.filter(l => !isFee(l))
+    const fees = g.lines.filter(isFee)
+    if (principal.length === 0) return
+    principal.sort((a, b) => a.posted - b.posted || b.debit - a.debit)
+    const p0 = principal[0]
+    let type = g.type
+    if (!type) type = /INSTAPAY/.test(p0.desc) ? 'InstaPay' : (/EPCSP-OUT/.test(p0.payOrder + ' ' + p0.group) ? 'PesoNET' : 'Other')
+    let initiated = null
+    if (type === 'InstaPay') {
+      const m = /^(\d{2})(\d{2})(20\d{2})/.exec(p0.group)
+      if (m) initiated = new Date(+m[3], +m[1] - 1, +m[2])
+    }
+    payments.push({
+      key: g.key, type: type, account: p0.account, posted: p0.posted, initiated: initiated,
+      amount: principal.reduce((s, l) => s + l.debit, 0), fee: fees.reduce((s, l) => s + l.debit, 0),
+      feePosted: fees.length ? fees.map(f => f.posted).sort((a, b) => b - a)[0] : null,
+      txnId: p0.txnId, checkNo: p0.checkNo, txnIds: principal.map(l => l.txnId), desc: p0.desc,
+    })
+  })
+  return { payments: payments, coverage: coverage }
+}
+
+function requestRows_(ss) {
+  const sh = ss.getSheetByName('REQUESTS')
+  const last = Math.min(sh.getLastRow(), REQ_MAX_ROW)
+  if (last < REQ_FIRST_ROW) return []
+  const v = sh.getRange(REQ_FIRST_ROW, 1, last - REQ_FIRST_ROW + 1, REQ_WIDTH).getValues()
+  const out = []
+  v.forEach((r, i) => {
+    const id = String(r[0] || '').trim()
+    if (!id) return
+    out.push({
+      id: id, row: REQ_FIRST_ROW + i, requestedBy: r[2], type: r[4], payee: String(r[5] || '').trim().toUpperCase(), purpose: r[6],
+      amount: asNum_(r[8]), processing: r[11], auth: String(r[13] || '').trim(), released: asDate_(r[15]), ref: String(r[17] || '').trim(),
+      fee: r[19], wht: asNum_(r[34]), sent: asDate_(r[35]), channel: String(r[36] || '').trim(), checkNo: String(r[37] || '').trim(),
+    })
+  })
+  return out
+}
+
+function expected_(q) { return q.type !== 'Cash Advance' && q.wht > 0 ? q.amount - q.wht : q.amount }
+
+function proposeMatches_(ss) {
+  const bank = bankPayments_(ss)
+  const reqs = requestRows_(ss)
+  const usedTxn = {}
+  reqs.forEach(q => { if (q.ref) usedTxn[q.ref] = q.id })
+  const open = bank.payments.filter(p => !p.txnIds.some(t => usedTxn[t]))
+  const pending = reqs.filter(q => q.sent && !q.released && !q.ref && q.auth !== 'Rejected' && ['GCash', 'Cash'].indexOf(q.channel) < 0)
+  const proposals = []
+  const taken = {}
+
+  const typeOk = (q, p) => q.channel === 'Other' || !q.channel || q.channel === p.type
+  const fits = (q, p, amount) => typeOk(q, p) && Math.abs(cents_(p.amount) - cents_(amount)) === 0 && p.posted >= q.sent
+
+  const strength = (qs, p) => {
+    const q = qs[0]
+    if (p.type === 'Check') return digits_(q.checkNo) && digits_(q.checkNo) === digits_(p.checkNo) ? 'exact' : 'possible'
+    if (p.type === 'InstaPay' && p.initiated) return p.initiated.getTime() === q.sent.getTime() ? 'exact' : 'possible'
+    // PesoNET / other: exact amount, posted within 10 days of sending
+    return (p.posted - q.sent) / 86400000 <= 10 ? 'exact' : 'possible'
+  }
+
+  // 1) Checks by check number (amount must match too)
+  pending.filter(q => q.channel === 'Check').forEach(q => {
+    const p = open.find(p => p.type === 'Check' && digits_(p.checkNo) && digits_(p.checkNo) === digits_(q.checkNo))
+    if (!p) return
+    if (Math.abs(cents_(p.amount) - cents_(expected_(q))) !== 0) {
+      proposals.push(build_([q], p, 'review', 'Check ' + q.checkNo + ' cleared for ' + p.amount.toFixed(2) + ', request expects ' + expected_(q).toFixed(2)))
+    } else proposals.push(build_([q], p, 'exact', 'Check no. ' + q.checkNo))
+    taken[p.key] = true; q._done = true
+  })
+
+  // 2) Single requests
+  pending.filter(q => !q._done).forEach(q => {
+    const cands = open.filter(p => !taken[p.key] && fits(q, p, expected_(q)))
+    if (cands.length === 0) return
+    const ranked = cands.map(p => ({ p: p, s: strength([q], p) })).sort((a, b) => (a.s === 'exact' ? 0 : 1) - (b.s === 'exact' ? 0 : 1) || a.p.posted - b.p.posted)
+    const exacts = ranked.filter(x => x.s === 'exact')
+    const pick = ranked[0]
+    const conf = exacts.length === 1 ? 'exact' : 'choose'
+    proposals.push(build_([q], pick.p, conf, conf === 'exact' ? reason_(pick.p) : cands.length + ' bank lines have this amount: pick the right one', ranked.slice(1).map(x => alt_(x.p))))
+    if (conf === 'exact') taken[pick.p.key] = true
+    q._done = true
+  })
+
+  // 3) Batches: requests sent the same day through the same channel (same payee first, then all)
+  const rest = pending.filter(q => !q._done)
+  const tryBatch = (qs, label) => {
+    if (qs.length < 2) return false
+    const total = qs.reduce((s, q) => s + expected_(q), 0)
+    const cands = open.filter(p => !taken[p.key] && fits(qs[0], p, total))
+    if (cands.length === 0) return false
+    const exact = cands.filter(p => strength(qs, p) === 'exact')
+    const pick = (exact[0] || cands[0])
+    const conf = exact.length === 1 ? 'exact' : 'choose'
+    proposals.push(build_(qs, pick, conf, 'Batch: ' + qs.length + ' requests ' + label + ' = ' + total.toFixed(2) + ' in one transfer. ' + reason_(pick), cands.filter(p => p !== pick).map(alt_)))
+    if (conf === 'exact') taken[pick.key] = true
+    qs.forEach(q => { q._done = true })
+    return true
+  }
+  const byDay = {}
+  rest.forEach(q => { const k = iso_(q.sent) + '|' + q.channel; (byDay[k] = byDay[k] || []).push(q) })
+  Object.keys(byDay).forEach(k => {
+    const day = byDay[k]
+    const byPayee = {}
+    day.forEach(q => { (byPayee[q.payee] = byPayee[q.payee] || []).push(q) })
+    Object.keys(byPayee).forEach(py => tryBatch(byPayee[py], 'to ' + (py || 'the same payee')))
+    tryBatch(day.filter(q => !q._done), 'sent ' + k.split('|')[0])
+  })
+
+  // 4) Bank fees that posted later (PesoNET) for requests already released from the statement
+  const byTxn = {}
+  bank.payments.forEach(p => p.txnIds.forEach(t => { byTxn[t] = p }))
+  const feeGroups = {}
+  reqs.filter(q => q.released && q.ref && (q.fee === '' || q.fee === null) && byTxn[q.ref] && byTxn[q.ref].fee > 0)
+    .forEach(q => { (feeGroups[q.ref] = feeGroups[q.ref] || []).push(q) })
+  Object.keys(feeGroups).forEach(t => {
+    const p = byTxn[t]; const qs = feeGroups[t]
+    proposals.push({ id: 'fee:' + t, kind: 'fee', confidence: 'exact', requestIds: qs.map(q => q.id), reason: 'Bank charge ' + p.fee.toFixed(2) + ' posted ' + iso_(p.feePosted),
+      bank: summary_p_(p), writes: splitFees_(qs, p.fee).map((f, i) => ({ requestId: qs[i].id, values: { bankCharges: f } })) })
+  })
+
+  // Waiting / overdue (for the app)
+  return { proposals: proposals, waiting: waiting_(reqs, bank, proposals) }
+}
+
+function summary_p_(p) {
+  return { key: p.key, type: p.type, account: p.account, posted: iso_(p.posted), initiated: iso_(p.initiated), amount: Math.round(p.amount * 100) / 100,
+    fee: Math.round(p.fee * 100) / 100, txnId: p.txnId, checkNo: p.checkNo, desc: p.desc }
+}
+function alt_(p) { return summary_p_(p) }
+function reason_(p) {
+  if (p.type === 'InstaPay' && p.initiated) return 'InstaPay sent ' + iso_(p.initiated) + ', posted ' + iso_(p.posted) + ' (' + bankingDaysAfter_(p.initiated, p.posted) + ' banking days for approval)'
+  if (p.type === 'PesoNET') return 'PesoNET posted ' + iso_(p.posted)
+  return p.type + ' posted ' + iso_(p.posted)
+}
+function splitFees_(qs, fee) {
+  const c = cents_(fee); const n = qs.length; const base = Math.floor(c / n); let rem = c - base * n
+  return qs.map(() => { const x = base + (rem > 0 ? 1 : 0); rem--; return x / 100 })
+}
+function build_(qs, p, confidence, reason, alternatives) {
+  const fees = splitFees_(qs, p.fee)
+  return {
+    id: 'rel:' + p.key + ':' + qs.map(q => q.id).join('+'), kind: 'release', confidence: confidence, reason: reason,
+    requestIds: qs.map(q => q.id), bank: summary_p_(p), alternatives: alternatives || [],
+    writes: qs.map((q, i) => ({ requestId: q.id, values: {
+      releaseDate: iso_(p.posted), releasedFrom: p.account, referenceNo: p.txnId, amountReleased: Math.round(expected_(q) * 100) / 100,
+      bankCharges: p.fee > 0 ? fees[i] : '', authorization: 'Approved', authorizationDate: iso_(p.posted),
+    } })),
+  }
+}
+
+function waiting_(reqs, bank, proposals) {
+  const inProposal = {}
+  proposals.forEach(pr => pr.requestIds.forEach(id => { inProposal[id] = true }))
+  const anyCoverage = Object.keys(bank.coverage).map(k => bank.coverage[k]).sort((a, b) => b - a)[0] || null
+  return reqs.filter(q => q.sent && !q.released && q.auth !== 'Rejected').map(q => {
+    const noStatement = q.channel === 'GCash' || q.channel === 'Cash'
+    const days = bankingDaysAfter_(q.sent, anyCoverage)
+    const lag = LAG_BANKING_DAYS[q.channel]
+    const overdue = !noStatement && q.channel !== 'Check' && lag !== undefined && days >= lag && !inProposal[q.id]
+    return { requestId: q.id, sent: iso_(q.sent), channel: q.channel, checkNo: q.checkNo, coverage: iso_(anyCoverage), bankingDaysCovered: days,
+      state: noStatement ? 'no-statement' : inProposal[q.id] ? 'match-found' : overdue ? 'overdue' : q.channel === 'Check' ? 'check-not-encashed' : 'waiting' }
+  })
+}
+
+function bankStatus_(ss) {
+  try {
+    const r = proposeMatches_(ss)
+    const cov = r.waiting.length ? r.waiting[0].coverage : ''
+    return { coverage: cov || coverageOnly_(ss), waiting: r.waiting, proposals: r.proposals.length, exact: r.proposals.filter(p => p.confidence === 'exact').length }
+  } catch (err) { return { error: String(err && err.message || err) } }
+}
+function coverageOnly_(ss) {
+  const c = bankPayments_(ss).coverage
+  const d = Object.keys(c).map(k => c[k]).sort((a, b) => b - a)[0]
+  return iso_(d || null)
+}
+
+function applyMatches_(ss, lists, data) {
+  const wanted = Array.isArray(data.ids) ? data.ids : []
+  if (wanted.length === 0) throw new Error('Nothing selected')
+  const choice = data.choices || {} // proposal id -> alternative bank key chosen by the user
+  const current = proposeMatches_(ss).proposals
+  const bank = bankPayments_(ss).payments
+  const reqs = requestRows_(ss)
+  const sh = ss.getSheetByName('REQUESTS')
+  const plan = []
+  wanted.forEach(id => {
+    let pr = current.find(p => p.id === id)
+    if (!pr) throw new Error('That match is no longer available (statement or sheet changed). Refresh and try again.')
+    if (pr.confidence === 'choose' && !choice[id]) throw new Error('Pick which bank line belongs to ' + pr.requestIds.join(', '))
+    if (choice[id] && pr.kind === 'release' && choice[id] !== pr.bank.key) {
+      const p = bank.find(b => b.key === choice[id])
+      if (!p || !pr.alternatives.some(a => a.key === p.key)) throw new Error('Chosen bank line is not one of the options')
+      pr = build_(pr.requestIds.map(rid => reqs.find(q => q.id === rid)), p, 'exact', 'chosen')
+    }
+    plan.push(pr)
+  })
+  const usedKeys = {}
+  plan.forEach(pr => { if (pr.kind === 'release') { if (usedKeys[pr.bank.key]) throw new Error('The same bank line was picked twice'); usedKeys[pr.bank.key] = true } })
+  // validate all, then write
+  const writes = []
+  plan.forEach(pr => pr.writes.forEach(w => {
+    const row = findRequestRow_(sh, w.requestId)
+    const map = pr.kind === 'fee' ? { bankCharges: 20 } : Object.assign({}, REQ_FIELDS.release, REQ_FIELDS.authorization)
+    writes.push([row, map, w.values])
+  }))
+  writes.forEach(w => writeFields_(sh, w[0], w[1], w[2], lists))
+  const ids = plan.reduce((a, pr) => a.concat(pr.requestIds), [])
+  return { sheet: 'REQUESTS', row: writes.map(w => w[0]).join(','), requestId: ids.join(', '), applied: plan.length }
 }
 
 function json_(o) {

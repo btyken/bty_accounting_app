@@ -23,13 +23,22 @@ const STATUS_RULES = {
     key: 'processing', title: 'Waiting for processing',
     fix: () => 'Accounts Payable: check the request and fill Processed Date and Processing Result (columns K–L).',
   },
+  'For sending to bank': {
+    key: 'to-send', title: 'Processed, not yet sent to bank',
+    groupFix: 'Set up the transfer in RCBC (or issue the check), then tick these requests on the Requests tab and click "Mark sent to bank". Requests paid in one transfer can be marked together.',
+    fix: () => 'Set up the transfer in RCBC (or issue the check), then use "Sent to bank" on this request.',
+  },
+  'Authorization on hold': {
+    key: 'auth-hold', title: "On hold with Ma'am Mia",
+    fix: () => "Ma'am Mia put this on hold. Follow up with her; once approved in RCBC the bank statement will release it.",
+  },
   'For authorization': {
     key: 'authorization', title: 'Waiting for authorization',
-    fix: () => "Ma'am Mia: approve, reject or put on hold (columns N–O).",
+    fix: () => 'Older entry: mark it "Sent to bank" so the bank statement can release it.',
   },
   'For release': {
     key: 'release', title: 'Approved, waiting for release',
-    fix: () => 'Accounts Payable: release the funds, then fill Release Date, Released From, Reference No., Amount Released and Bank Charges (columns P–T).',
+    fix: () => 'Older entry: mark it "Sent to bank" so the bank statement can release it.',
   },
   'Returned to requester': {
     key: 'returned', title: 'Returned to requester',
@@ -118,9 +127,32 @@ const CHECK_RULES = [
   },
 ]
 
-export function issuesFor(r) {
+const SENT_RULES = {
+  'match-found': { key: 'match-found', title: 'In the bank statement: ready to apply',
+    groupFix: 'The bank statement shows these payments. Click "Apply bank statement" to fill the release and Ma\'am Mia\'s approval from the bank.',
+    fix: () => 'The bank statement shows this payment. Click "Apply bank statement" to fill the release from the bank.' },
+  'overdue': { key: 'sent-overdue', title: 'Sent, but not in the bank statement yet',
+    groupFix: 'The statement already covers enough banking days after these were sent. Check in RCBC whether Ma\'am Mia approved them, or whether the transfer was declined or failed. If declined, use "Not approved in RCBC".',
+    fix: (r, w) => `Sent ${w.sent} via ${w.channel}; the statement covers ${w.bankingDaysCovered} banking day(s) after that (up to ${w.coverage}) and it is not there. Check in RCBC whether Ma'am Mia approved it, or whether it failed.` },
+  'waiting': { key: 'sent-waiting', title: "Sent, waiting for Ma'am Mia / bank posting",
+    groupFix: 'Nothing to do yet. These will release automatically once Ma\'am Mia approves in RCBC and the next statement (Mon/Wed/Fri) is pasted and applied.',
+    fix: () => 'Nothing to do yet: it releases once approved in RCBC and the next statement is applied.' },
+  'check-not-encashed': { key: 'check-out', title: 'Check issued, not yet encashed',
+    groupFix: 'Normal until the payee deposits the check. It releases from the statement when the check clears (matched by check number).',
+    fix: (r, w) => `Check no. ${w.checkNo} issued ${w.sent}. It releases when the check clears.` },
+  'no-statement': { key: 'no-statement', title: 'GCash / cash: record the release manually',
+    groupFix: 'There is no imported statement for GCash or cash. Open the request and use "Manual release" (it also ticks Bank Confirmed).',
+    fix: () => 'No imported statement for GCash / cash: use "Manual release" on this request.' },
+}
+
+export function issuesFor(r, bankWaiting) {
   const out = []
   const st = String(r['Status'] || '').trim()
+  if (st === 'Sent, waiting for approval/posting') {
+    const w = bankWaiting?.[r['Request ID']]
+    const rule = SENT_RULES[w?.state || 'waiting']
+    out.push({ key: rule.key, title: rule.title, fix: rule.fix(r, w || {}), groupFix: rule.groupFix, owner: w?.state === 'overdue' ? "Accounts Payable / Ma'am Mia" : rule.key === 'sent-waiting' ? "Ma'am Mia (RCBC)" : 'Accounts Payable (Ma\'am Cherry)', info: rule.key === 'sent-waiting' || rule.key === 'check-out' })
+  }
   const rule = STATUS_RULES[st]
   if (rule) out.push({ key: rule.key, title: rule.title, fix: rule.fix(r), groupFix: rule.groupFix, note: rule.note ? rule.note(r) : '', owner: r['Next Action By'] || '' })
 
@@ -137,18 +169,18 @@ export function issuesFor(r) {
 }
 
 // Group all requests' issues by type for the Overview panel.
-export function groupIssues(headers, rows) {
+export function groupIssues(headers, rows, bankWaiting) {
   const groups = new Map()
   for (const row of rows) {
     const r = rowObj(headers, row)
-    for (const is of issuesFor(r)) {
-      if (!groups.has(is.key)) groups.set(is.key, { key: is.key, title: is.title, groupFix: is.groupFix, items: [], total: 0 })
+    for (const is of issuesFor(r, bankWaiting)) {
+      if (!groups.has(is.key)) groups.set(is.key, { key: is.key, title: is.title, groupFix: is.groupFix, info: is.info, items: [], total: 0 })
       const g = groups.get(is.key)
       g.items.push({ id: r['Request ID'], row, r, fix: is.fix, note: is.note, owner: is.owner })
       g.total += Math.abs(num(r['Open Balance']))
     }
   }
-  const order = ['rel-vs-req', 'no-ref', 'ref-not-in-book', 'book-differs', 'bank-differs', 'not-in-bank', 'receipts-mismatch', 'payback', 'overdue', 'partial', 'receipts-missing', 'for-liquidation', 'release', 'authorization', 'processing', 'returned']
+  const order = ['match-found', 'sent-overdue', 'rel-vs-req', 'no-ref', 'ref-not-in-book', 'book-differs', 'bank-differs', 'not-in-bank', 'receipts-mismatch', 'payback', 'overdue', 'partial', 'receipts-missing', 'no-statement', 'to-send', 'processing', 'auth-hold', 'returned', 'for-liquidation', 'release', 'authorization', 'sent-waiting', 'check-out']
   return [...groups.values()].sort((a, b) => {
     const ia = order.indexOf(a.key), ib = order.indexOf(b.key)
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)

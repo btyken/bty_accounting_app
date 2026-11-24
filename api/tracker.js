@@ -1,7 +1,8 @@
 // Vercel serverless function: the app's only door to the requisition tracker sheet.
 //   GET  → read the sheet (requests, receipts, reconciliation, dropdown lists…)
 //   POST → write a requisition entry into the sheet (new request, processing,
-//          release, liquidation, receipt). The sheet is the database.
+//          sent to bank, bank-statement matching, release, liquidation,
+//          receipt). The sheet is the database.
 //
 // Env vars (Vercel > Project > Settings > Environment Variables):
 //   TRACKER_URL  – the Apps Script web-app URL (…/exec)
@@ -25,7 +26,7 @@ async function appUser(id) {
   }
 }
 
-const ACTIONS = new Set(['addRequest', 'updateRequest', 'addReceipt'])
+const ACTIONS = new Set(['addRequest', 'updateRequest', 'addReceipt', 'markSent', 'markNotApproved', 'proposeMatches', 'applyMatches'])
 const STEPS = new Set(['request', 'process', 'release', 'liquidate'])
 
 module.exports = async (req, res) => {

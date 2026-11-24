@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../store/AuthContext'
 import Modal from './ui/Modal'
 import { issuesFor, groupIssues, rowObj, peso } from './tracker/fixes'
-import EntryForm, { newRequestInitial, stepInitial, receiptInitial } from './tracker/EntryForms'
+import EntryForm, { newRequestInitial, stepInitial, receiptInitial, sentInitial, notApprovedInitial } from './tracker/EntryForms'
+import BankMatches from './tracker/BankMatches'
 import {
-  RefreshCw, ExternalLink, Search, AlertTriangle, Sheet, Clock, CheckCircle2, Plug, Wrench, ChevronDown, ChevronRight, User, Plus, FilePlus2, ClipboardCheck, Send, Wallet, Pencil, CheckCircle,
+  RefreshCw, ExternalLink, Search, AlertTriangle, Sheet, Clock, CheckCircle2, Plug, Wrench, ChevronDown, ChevronRight, User, Plus, FilePlus2, ClipboardCheck, Send, Wallet, Pencil, CheckCircle, Landmark, Ban,
 } from 'lucide-react'
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1gV5PH9xsEuVpbINpkSCy-a4Wcrm3ZpBtDKuuzazkRLA/edit'
@@ -24,8 +25,9 @@ const TABS = [
 // Columns shown in the Requests table (by header text in the REQUESTS tab).
 const REQUEST_COLS = [
   'Request ID', 'Status', 'Date Requested', 'Requested By', 'Request Type', 'Payee / Supplier', 'Purpose / Particulars',
-  'Amount Requested', 'Amount Released', 'Open Balance', 'Release Date', 'Next Action By', 'Reconciliation Check',
+  'Amount Requested', 'Sent to Bank Date', 'Channel', 'Release Date', 'Amount Released', 'Open Balance', 'Next Action By', 'Reconciliation Check',
 ]
+const SENDABLE = new Set(['For sending to bank', 'For authorization', 'For release'])
 const UNLIQ_COLS = [
   'Request ID', 'Aging', 'Requested By', 'Purpose', 'Release Date', 'Amount Released', 'Receipts',
   'Change Returned', 'Unliquidated Balance', 'Days Outstanding', 'Status',
@@ -107,18 +109,38 @@ export default function RequisitionTracker() {
   const [detail, setDetail] = useState(null)
   const [form, setForm] = useState(null)
   const [toast, setToast] = useState('')
+  const [bankOpen, setBankOpen] = useState(false)
+  const [selected, setSelected] = useState(() => new Set())
   const canWrite = !!data?.canWrite
+  const bankWaiting = useMemo(() => Object.fromEntries((data?.bank?.waiting || []).map(w => [w.requestId, w])), [data])
+  const requestsById = useMemo(() => {
+    if (!data?.requests) return {}
+    const h = data.requests.headers
+    return Object.fromEntries(data.requests.rows.map(row => { const r = rowObj(h, row); return [r['Request ID'], r] }))
+  }, [data])
+  const toggleSel = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const openSent = (ids) => {
+    const rows = ids.map(id => requestsById[id]).filter(Boolean)
+    const total = rows.reduce((t, r) => t + (parseFloat(String(r['Amount Requested']).replace(/,/g, '')) || 0), 0)
+    setDetail(null)
+    setForm({ kind: 'sent', requestIds: ids, initial: sentInitial(), context: {
+      rows: rows.map(r => ({ id: r['Request ID'], purpose: r['Purpose / Particulars'], amount: r['Amount Requested'] })),
+      total: rows.length > 1 ? peso(total) : '' } })
+  }
 
   const openStep = (kind, row) => {
     const headers = data.requests.headers
     const r = rowObj(headers, row)
     const id = r['Request ID']
+    if (kind === 'sent') return openSent([id])
+    if (kind === 'notApproved') { setDetail(null); return setForm({ kind, requestId: id, initial: notApprovedInitial(), context: { summary: `${id} · ${r['Purpose / Particulars']} · ₱${r['Amount Requested']}` } }) }
     const ctx = {}
     if (kind === 'release') {
       const wht = parseFloat(String(r['Withholding Tax on Receipts'] || '0').replace(/,/g, '')) || 0
       ctx.expected = wht > 0 ? `${r['Amount Requested']} less ${r['Withholding Tax on Receipts']} withholding tax` : r['Amount Requested']
     }
     ctx.summary = `${id} · ${r['Requested By']} · ${r['Purpose / Particulars']} · ₱${r['Amount Requested']} · ${r['Status']}`
+    if (kind === 'release') ctx.summary = 'Use this only for GCash, cash, or to correct a release. Bank transfers and checks release themselves from the statement (Apply bank statement). ' + ctx.summary
     const initial = kind === 'receipt' ? receiptInitial(r) : stepInitial(headers, row, kind)
     if (kind === 'release' && !initial.amountReleased) initial.amountReleased = String(r['Amount Requested'] || '').replace(/,/g, '')
     setDetail(null)
@@ -136,7 +158,8 @@ export default function RequisitionTracker() {
   }
   const onSaved = (res, f) => {
     setForm(null)
-    const what = { newRequest: 'New request', request: 'Request details', process: 'Processing', release: 'Release', liquidate: 'Liquidation', receipt: 'Receipt' }[f.kind]
+    const what = { newRequest: 'New request', request: 'Request details', process: 'Processing', release: 'Manual release', liquidate: 'Liquidation', receipt: 'Receipt', sent: 'Sent to bank', notApproved: 'Not approved in RCBC' }[f.kind]
+    if (f.kind === 'sent') setSelected(new Set())
     setToast(`${what} saved to the sheet${res.requestId ? ` · ${res.requestId}` : ''}. Refreshing…`)
     setTimeout(() => setToast(''), 5000)
     reload()
@@ -161,6 +184,11 @@ export default function RequisitionTracker() {
         <button className="btn btn-secondary btn-sm" onClick={reload} disabled={loading}>
           <RefreshCw size={13} className={loading ? 'spin' : ''} /> {loading ? 'Syncing…' : 'Refresh'}
         </button>
+        {canWrite && (
+          <button className="btn btn-warning btn-sm" onClick={() => setBankOpen(true)}>
+            <Landmark size={13} /> Apply bank statement{data?.bank?.proposals ? ` (${data.bank.proposals})` : ''}
+          </button>
+        )}
         <a className="btn btn-primary btn-sm" href={sheetUrl} target="_blank" rel="noreferrer">
           <ExternalLink size={13} /> Open in Google Sheets
         </a>
@@ -190,6 +218,21 @@ export default function RequisitionTracker() {
       {!canWrite && (
         <div className="tracker-note">Entry from the app turns on once the sheet script is updated. Until then this page is read-only.</div>
       )}
+      {bankOpen && (
+        <BankMatches userId={currentUser?.id} requestsById={requestsById} coverage={data.bank?.coverage}
+          onClose={() => setBankOpen(false)}
+          onApplied={(res, n) => { setBankOpen(false); setToast(`${n} bank match${n === 1 ? '' : 'es'} applied to the sheet. Refreshing…`); setTimeout(() => setToast(''), 5000); reload() }} />
+      )}
+      {canWrite && data.bank?.coverage && (
+        <div className="bank-banner">
+          <Landmark size={15} />
+          <span>Bank statement covers up to <strong>{data.bank.coverage}</strong>.</span>
+          {data.bank.proposals > 0
+            ? <span><strong>{data.bank.proposals}</strong> match{data.bank.proposals === 1 ? '' : 'es'} found ({data.bank.exact} exact) · <a onClick={() => setBankOpen(true)}>review and apply</a></span>
+            : <span className="text-muted">No new matches.</span>}
+          {(data.bank.waiting || []).some(w => w.state === 'overdue') && <span className="bank-warn">{data.bank.waiting.filter(w => w.state === 'overdue').length} sent but missing from the statement</span>}
+        </div>
+      )}
       {form && (
         <EntryForm form={form} lists={data.lists} userId={currentUser?.id} onClose={() => setForm(null)} onSaved={onSaved} />
       )}
@@ -204,12 +247,15 @@ export default function RequisitionTracker() {
         ))}
       </div>
 
-      {tab === 'overview' && <Overview data={data} onGo={setTab} onOpen={(row) => setDetail({ headers: data.requests.headers, row })} />}
+      {tab === 'overview' && <Overview data={data} onGo={setTab} bankWaiting={bankWaiting} onOpen={(row) => setDetail({ headers: data.requests.headers, row })} />}
 
       {tab === 'requests' && canWrite && (
         <div className="tab-actions">
           <button className="btn btn-primary" onClick={openNewRequest}><Plus size={15} /> New request</button>
-          <span className="text-muted text-sm">Open a request to process, release, liquidate or add receipts.</span>
+          <button className="btn btn-secondary" disabled={selected.size === 0} onClick={() => openSent([...selected])}>
+            <Send size={14} /> Mark sent to bank{selected.size ? ` (${selected.size})` : ''}
+          </button>
+          <span className="text-muted text-sm">Tick processed requests to mark them sent. Open a request for the other steps.</span>
         </div>
       )}
       {tab === 'requests' && (
@@ -221,6 +267,9 @@ export default function RequisitionTracker() {
           q={q} setQ={setQ} statusFilter={statusFilter} setStatusFilter={setStatusFilter}
           onRow={(row) => setDetail({ headers: data.requests.headers, row })}
           empty="No requests in the sheet yet."
+          selectable={canWrite ? (row) => SENDABLE.has(rowObj(data.requests.headers, row)['Status']) : null}
+          selected={selected}
+          onToggle={toggleSel}
         />
       )}
 
@@ -300,7 +349,7 @@ export default function RequisitionTracker() {
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail ? `${detail.row[0]} · ${detail.row[6] || ''}` : ''} size="modal-lg"
         footer={detail && canWrite ? <StepActions headers={detail.headers} row={detail.row} onStep={openStep} /> : null}>
-        {detail && <DetailFixes headers={detail.headers} row={detail.row} />}
+        {detail && <DetailFixes headers={detail.headers} row={detail.row} bankWaiting={bankWaiting} />}
         {detail && (
           <div className="detail-grid">
             {detail.headers.map((h, i) => h && (
@@ -320,18 +369,22 @@ export default function RequisitionTracker() {
 
 function StepActions({ headers, row, onStep }) {
   const r = rowObj(headers, row)
-  const approved = r['Authorization'] === 'Approved'
   const rejected = r['Authorization'] === 'Rejected'
   const released = !!String(r['Release Date'] || '').trim()
+  const sent = !!String(r['Sent to Bank Date'] || '').trim()
+  const processed = r['Processing Result'] === 'Processed'
   const isCA = r['Request Type'] === 'Cash Advance'
   return (
     <div className="step-actions">
       <button className="btn btn-secondary btn-sm" onClick={() => onStep('request', row)}><Pencil size={13} /> Edit details</button>
       <button className="btn btn-secondary btn-sm" onClick={() => onStep('process', row)}><ClipboardCheck size={13} /> Processing</button>
-      <button className="btn btn-secondary btn-sm" onClick={() => onStep('release', row)} disabled={!approved}
-        title={approved ? '' : rejected ? 'Rejected by Ma\'am Mia' : 'Waiting for Ma\'am Mia\'s approval in the sheet'}>
-        <Send size={13} /> Release
-      </button>
+      {!released && !rejected && (
+        <button className="btn btn-secondary btn-sm" onClick={() => onStep('sent', row)} disabled={!processed} title={processed ? '' : 'Process it first'}>
+          <Send size={13} /> {sent ? 'Edit sent to bank' : 'Sent to bank'}
+        </button>
+      )}
+      {!released && sent && !rejected && <button className="btn btn-secondary btn-sm" onClick={() => onStep('notApproved', row)}><Ban size={13} /> Not approved in RCBC</button>}
+      <button className="btn btn-secondary btn-sm" onClick={() => onStep('release', row)} disabled={rejected} title="GCash / cash / corrections"><Wallet size={13} /> Manual release</button>
       {isCA && <button className="btn btn-secondary btn-sm" onClick={() => onStep('liquidate', row)} disabled={!released}><Wallet size={13} /> Liquidation</button>}
       <button className="btn btn-primary btn-sm" onClick={() => onStep('receipt', row)} disabled={rejected}><FilePlus2 size={13} /> Add receipt</button>
     </div>
@@ -340,10 +393,10 @@ function StepActions({ headers, row, onStep }) {
 
 /* ── Recommended fixes ───────────────────────────────────── */
 
-function NeedsAttention({ data, onOpen }) {
+function NeedsAttention({ data, onOpen, bankWaiting }) {
   const headers = data.requests?.headers || []
   const rows = data.requests?.rows || []
-  const groups = useMemo(() => groupIssues(headers, rows), [headers, rows])
+  const groups = useMemo(() => groupIssues(headers, rows, bankWaiting), [headers, rows, bankWaiting])
   const [open, setOpen] = useState(() => new Set(groups.slice(0, 1).map(g => g.key)))
   const toggle = (k) => setOpen(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
 
@@ -351,7 +404,7 @@ function NeedsAttention({ data, onOpen }) {
     <div className="card" style={{ marginBottom: 18 }}>
       <div className="card-head">
         <h3><Wrench size={15} style={{ verticalAlign: -2, marginRight: 8 }} />Needs attention</h3>
-        <span className="chip">{groups.length === 0 ? 'All clear' : `${groups.reduce((n, g) => n + g.items.length, 0)} items · ${groups.length} type${groups.length === 1 ? '' : 's'}`}</span>
+        <span className="chip">{groups.filter(g => !g.info).length === 0 ? 'All clear' : `${groups.filter(g => !g.info).reduce((n, g) => n + g.items.length, 0)} to act on · ${groups.filter(g => g.info).reduce((n, g) => n + g.items.length, 0)} waiting`}</span>
       </div>
       {groups.length === 0 && (
         <div className="fix-clear"><CheckCircle2 size={16} /> Every request is closed or reconciled. Nothing to fix.</div>
@@ -361,7 +414,7 @@ function NeedsAttention({ data, onOpen }) {
         const sameFix = g.items.every(it => it.fix === g.items[0].fix)
         const shared = g.groupFix && g.items.length > 1 ? g.groupFix : (sameFix ? g.items[0].fix : null)
         return (
-          <div key={g.key} className={`fix-group${isOpen ? ' open' : ''}`}>
+          <div key={g.key} className={`fix-group${isOpen ? ' open' : ''}${g.info ? ' info' : ''}`}>
             <button className="fix-head" onClick={() => toggle(g.key)}>
               {isOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
               <span className="fix-title">{g.title}</span>
@@ -393,8 +446,8 @@ function NeedsAttention({ data, onOpen }) {
   )
 }
 
-function DetailFixes({ headers, row }) {
-  const issues = issuesFor(rowObj(headers, row))
+function DetailFixes({ headers, row, bankWaiting }) {
+  const issues = issuesFor(rowObj(headers, row), bankWaiting)
   if (issues.length === 0) {
     return <div className="fix-clear" style={{ marginBottom: 14 }}><CheckCircle2 size={16} /> No open issues on this request.</div>
   }
@@ -414,13 +467,13 @@ function DetailFixes({ headers, row }) {
 
 /* ── Overview ─────────────────────────────────────────────── */
 
-function Overview({ data, onGo, onOpen }) {
+function Overview({ data, onGo, onOpen, bankWaiting }) {
   const pos = data.position || []
   const find = (re) => pos.find(p => re.test(p.measure))
   const tiles = [
     { label: 'Waiting for processing', m: find(/waiting for processing/i), go: 'requests' },
-    { label: 'Waiting for authorization', m: find(/waiting for authorization/i), go: 'requests' },
-    { label: 'Approved, waiting for release', m: find(/waiting for release/i), go: 'requests' },
+    { label: 'Processed, not yet sent to bank', m: find(/not yet sent to bank/i), go: 'requests' },
+    { label: "Sent, waiting for Ma'am Mia / bank", m: find(/waiting for ma.am mia/i), go: 'requests' },
     { label: 'Unliquidated cash advances', m: find(/not yet liquidated/i), go: 'unliquidated', warn: true },
   ]
   const recon = data.reconciliation?.summary || []
@@ -440,7 +493,7 @@ function Overview({ data, onGo, onOpen }) {
         ))}
       </div>
 
-      <NeedsAttention data={data} onOpen={onOpen} />
+      <NeedsAttention data={data} onOpen={onOpen} bankWaiting={bankWaiting} />
 
       <div className="grid-2-1">
         <div className="card">
@@ -503,7 +556,7 @@ function Summary({ items }) {
 
 /* ── Generic sheet table ───────────────────────────────────── */
 
-function SheetTable({ title, table, columns, statusColumn, badgeColumns = [], q, setQ, statusFilter, setStatusFilter, onRow, empty, compact }) {
+function SheetTable({ title, table, columns, statusColumn, badgeColumns = [], q, setQ, statusFilter, setStatusFilter, onRow, empty, compact, selectable, selected, onToggle }) {
   const headers = table?.headers || []
   const rows = table?.rows || []
   const idx = useMemo(() => {
@@ -556,11 +609,16 @@ function SheetTable({ title, table, columns, statusColumn, badgeColumns = [], q,
             <div className={`table-wrap tracker-table${compact ? ' compact' : ''}`}>
               <table>
                 <thead>
-                  <tr>{idx.map(i => <th key={i} className={isAmountHeader(headers[i]) ? 'text-right' : ''}>{SHORT[headers[i]] || headers[i]}</th>)}</tr>
+                  <tr>{selectable && <th style={{ width: 34 }} />}{idx.map(i => <th key={i} className={isAmountHeader(headers[i]) ? 'text-right' : ''}>{SHORT[headers[i]] || headers[i]}</th>)}</tr>
                 </thead>
                 <tbody>
                   {filtered.map((r, ri) => (
-                    <tr key={ri} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? { cursor: 'pointer' } : undefined}>
+                    <tr key={ri} onClick={onRow ? () => onRow(r) : undefined} style={onRow ? { cursor: 'pointer' } : undefined} className={selected?.has(r[0]) ? 'row-selected' : ''}>
+                      {selectable && (
+                        <td onClick={e => e.stopPropagation()} style={{ width: 34 }}>
+                          {selectable(r) && <input type="checkbox" className="row-check" checked={!!selected?.has(r[0])} onChange={() => onToggle(r[0])} />}
+                        </td>
+                      )}
                       {idx.map(i => {
                         const h = headers[i], v = r[i]
                         if (badgeColumns.includes(h)) return <td key={i}><StatusBadge text={v} /></td>

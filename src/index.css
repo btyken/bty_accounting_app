@@ -421,6 +421,31 @@ a.btn { text-decoration: none; }
 .step-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; width: 100%; }
 textarea.form-input { resize: vertical; font-family: var(--font); }
 
+/* Bank statement matching */
+.bank-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 10px; padding: 10px 14px; font-size: 13px; color: var(--text); margin-bottom: 14px; }
+.bank-banner a { color: var(--gold-deep); font-weight: 700; cursor: pointer; text-decoration: underline; }
+.bank-warn { margin-left: auto; color: var(--neg); font-weight: 600; }
+.match-h { font-size: 13px; font-weight: 700; color: var(--ink); margin: 18px 0 8px; display: flex; align-items: center; gap: 6px; }
+.match-h.warn { color: var(--neg); }
+.match-h.muted { color: var(--muted); }
+.match-card { display: flex; gap: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; background: var(--card); }
+.match-card.on { border-color: var(--gold); background: #fffdf7; }
+.match-tick input, .row-check { width: 16px; height: 16px; accent-color: var(--ink); cursor: pointer; }
+.match-tick { padding-top: 2px; }
+.match-body { flex: 1; min-width: 0; }
+.match-req { display: flex; gap: 10px; align-items: baseline; font-size: 13px; padding: 2px 0; }
+.match-bank { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; color: var(--ink); background: var(--side-bg); border-radius: 8px; padding: 6px 10px; }
+.match-hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+.match-choose { margin-top: 6px; }
+.radio-row { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 5px 8px; border-radius: 8px; cursor: pointer; }
+.radio-row:hover { background: var(--hover); }
+.match-note { font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.match-wait { border-bottom: 1px solid var(--border); padding: 7px 2px; }
+.bank-line strong { color: var(--ink); }
+.sent-list { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; max-height: 180px; overflow: auto; }
+.row-selected td { background: #fffaf0 !important; }
+.fix-group.info .fix-meta { color: var(--muted); }
+
 /* ── Smaller screens ───────────────────────────────────── */
 @media (max-width: 1200px) {
   .grid-4 { grid-template-columns: repeat(2, 1fr); }

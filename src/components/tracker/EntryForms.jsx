@@ -102,7 +102,9 @@ const TITLES = {
   newRequest: 'New request',
   request: 'Edit request details',
   process: 'Processing',
-  release: 'Release',
+  release: 'Manual release (GCash / cash / correction)',
+  sent: 'Sent to bank',
+  notApproved: 'Not approved in RCBC',
   liquidate: 'Liquidation',
   receipt: 'Add receipt',
 }
@@ -143,6 +145,8 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
       let payload
       const clean = (o) => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, typeof x === 'string' ? x.trim() : x]))
       if (form.kind === 'newRequest') payload = { action: 'addRequest', data: clean(v) }
+      else if (form.kind === 'sent') payload = { action: 'markSent', data: clean({ ...v, requestIds: form.requestIds }) }
+      else if (form.kind === 'notApproved') payload = { action: 'markNotApproved', data: clean({ ...v, requestId: form.requestId }) }
       else if (form.kind === 'receipt') {
         const requestId = form.requestId || v.requestId
         if (!requestId) throw new Error('Pick the request this receipt belongs to.')
@@ -169,7 +173,7 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
 
   return (
     <Modal open onClose={saving ? () => {} : onClose} size="modal-lg"
-      title={`${TITLES[k]}${form.requestId ? ` · ${form.requestId}` : ''}`} footer={footer}>
+      title={`${TITLES[k]}${form.requestId ? ` · ${form.requestId}` : form.requestIds ? ` · ${form.requestIds.length} request${form.requestIds.length === 1 ? '' : 's'}` : ''}`} footer={footer}>
       {ctx.summary && <div className="form-context"><Info size={14} /> {ctx.summary}</div>}
       {error && <div className="form-error"><AlertTriangle size={14} /> {error}</div>}
 
@@ -190,6 +194,33 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
           <F label="Amount requested *" hint="For a supplier payment: the full invoice amount, before withholding tax.">
             <input className="form-input" type="number" step="0.01" min="0" value={v.amountRequested} onChange={e => set('amountRequested')(e.target.value)} />
           </F>
+        </div>
+      )}
+
+      {k === 'sent' && (
+        <div className="form-grid">
+          <F label="Requests" span>
+            <div className="sent-list">{(ctx.rows || []).map(r => (
+              <div key={r.id} className="match-req"><span className="fix-id">{r.id}</span><span className="fix-purpose">{r.purpose}</span><span className="fix-amt">₱{r.amount}</span></div>
+            ))}</div>
+            {ctx.total && <div className="field-hint">Total {ctx.total}. If these go out as one transfer, the bank line must equal this total.</div>}
+          </F>
+          <F label="Date sent / set up in RCBC *"><input className="form-input" type="date" value={v.sentDate} onChange={e => set('sentDate')(e.target.value)} /></F>
+          <F label="Channel *" hint="InstaPay posts once Ma'am Mia approves; PesoNET takes 1–2 banking days; checks release when encashed.">
+            <Select value={v.channel} onChange={set('channel')} options={L.channels || ['InstaPay', 'PesoNET', 'Check', 'GCash', 'Cash', 'Other']} />
+          </F>
+          {v.channel === 'Check' && <F label="Check no. *"><input className="form-input" value={v.checkNo} onChange={e => set('checkNo')(e.target.value.trim())} placeholder="e.g. 1200000703" /></F>}
+          {(v.channel === 'GCash' || v.channel === 'Cash') && (
+            <F label=" " span><div className="form-context" style={{ margin: 0 }}><Info size={14} /> GCash and cash have no imported statement: after sending, open the request and use “Manual release”.</div></F>
+          )}
+        </div>
+      )}
+
+      {k === 'notApproved' && (
+        <div className="form-grid">
+          <F label="Result in RCBC"><Select value={v.status} onChange={set('status')} options={['Rejected', 'On hold']} allowBlank={false} /></F>
+          <F label="Date"><input className="form-input" type="date" value={v.date} onChange={e => set('date')(e.target.value)} /></F>
+          <F label="Reason / note (added to Accounts Payable notes)" span><input className="form-input" value={v.note} onChange={e => set('note')(e.target.value)} placeholder="e.g. Declined in RCBC: wrong account number" /></F>
         </div>
       )}
 
@@ -278,6 +309,9 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
     </Modal>
   )
 }
+
+export function sentInitial() { return { sentDate: today(), channel: 'InstaPay', checkNo: '' } }
+export function notApprovedInitial() { return { status: 'Rejected', date: today(), note: '' } }
 
 export function newRequestInitial() {
   return { dateRequested: today(), requestedBy: '', department: '', requestType: '', payee: '', purpose: '', account: '', amountRequested: '', dateNeeded: '' }

@@ -217,8 +217,13 @@ export default function RequisitionTracker() {
             q={q} setQ={setQ} statusFilter={statusFilter} setStatusFilter={setStatusFilter}
             empty="No bank statement imported yet."
           />
-          {data.bankRecon?.missingFromBank?.rows?.length > 0 && (
-            <SheetTable title="In the book, not in the bank" table={data.bankRecon.missingFromBank} q={q} compact />
+          {data.bankRecon?.missingFromBank?.rows?.some(r => !/^none/i.test(String(r[0]))) && (
+            <SheetTable
+              title="In the book, not in the bank"
+              table={{ ...data.bankRecon.missingFromBank, rows: data.bankRecon.missingFromBank.rows.filter(r => !/^none/i.test(String(r[0]))) }}
+              q={q}
+              compact
+            />
           )}
         </>
       )}

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, BookOpen, ArrowLeftRight, Edit3, FileText, CreditCard, Wallet,
-  Hash, BookMarked, FileBarChart2, TrendingUp, ClipboardList, CalendarRange, Users,
+  Hash, BookMarked, FileBarChart2, TrendingUp, ClipboardList, CalendarRange, Users, Sheet,
 } from 'lucide-react'
 
 export const NAV = [
@@ -19,6 +19,12 @@ export const NAV = [
       { id: 'invoices',  Icon: FileText,   label: 'Invoices' },
       { id: 'expenses',  Icon: CreditCard, label: 'Expenses' },
       { id: 'pettycash', Icon: Wallet,     label: 'Petty Cash' },
+    ],
+  },
+  {
+    section: 'Google Sheet',
+    items: [
+      { id: 'tracker', Icon: Sheet, label: 'Requisition Tracker' },
     ],
   },
   {
@@ -52,6 +58,7 @@ export const TITLES = {
   trialbalance: 'Trial Balance',
   aging:        'Aging Reports',
   users:        'User Management',
+  tracker:      'Requisition Tracker',
 }
 
 export function sectionOf(page) {

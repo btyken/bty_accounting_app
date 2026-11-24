@@ -21,6 +21,7 @@ import FinancialStatements from './components/reports/FinancialStatements'
 import AdjustingEntries from './components/reports/AdjustingEntries'
 import AgingReports from './components/reports/AgingReports'
 import PettyCash from './components/PettyCash'
+import RequisitionTracker from './components/RequisitionTracker'
 
 const PRINT_PAGES  = ['pl', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
 const REPORT_PAGES = ['pl', 'expreport', 'gl', 'trialbalance', 'financial', 'aging']
@@ -85,6 +86,7 @@ function AppInner() {
       case 'adjusting':    return <AdjustingEntries />
       case 'aging':        return <AgingReports />
       case 'pettycash':    return <PettyCash />
+      case 'tracker':      return <RequisitionTracker />
       case 'users':        return <UserManagement />
       default:             return <Dashboard onNavigate={setPage} />
     }

@@ -11,6 +11,12 @@ const num = (v) => {
 }
 export const peso = (n) => `₱${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
+// "1156 · CASH IN BANK - GCASH (GERARD NEW - 09679263600)" → "GCash GERARD NEW"
+export const gcashShort = (label) => {
+  const m = /GCASH \(([^)]*?)\s*-\s*\d+\)/i.exec(String(label || ''))
+  return m ? `GCash ${m[1]}` : String(label || '')
+}
+
 export function rowObj(headers, row) {
   const o = {}
   headers.forEach((h, i) => { if (h) o[h] = row[i] ?? '' })
@@ -123,14 +129,14 @@ const CHECK_RULES = [
   },
   {
     re: /^Not found in bank statement/i, key: 'not-in-bank', title: 'Not found in the bank statement',
-    fix: () => 'Paste the latest RCBC export into BANK IMPORT. For GCash or other accounts without an imported statement, tick Bank Confirmed Manually (column U) once checked.',
+    fix: () => 'Paste the latest RCBC export into BANK IMPORT (GCash: GCASH IMPORT, then apply). For accounts without an imported statement, tick Bank Confirmed Manually (column U) once checked.',
   },
 ]
 
 const SENT_RULES = {
   'match-found': { key: 'match-found', title: 'In the bank statement: ready to apply',
-    groupFix: 'The bank statement shows these payments. Click "Apply bank statement" to fill the release and Ma\'am Mia\'s approval from the bank.',
-    fix: () => 'The bank statement shows this payment. Click "Apply bank statement" to fill the release from the bank.' },
+    groupFix: 'The bank / GCash statement shows these payments. Click "Apply bank / GCash statement" to fill the release from the statement.',
+    fix: () => 'The bank / GCash statement shows this payment. Click "Apply bank / GCash statement" to fill the release from it.' },
   'overdue': { key: 'sent-overdue', title: 'Sent, but not in the bank statement yet',
     groupFix: 'The statement already covers enough banking days after these were sent. Check in RCBC whether Ma\'am Mia approved them, or whether the transfer was declined or failed. If declined, use "Not approved in RCBC".',
     fix: (r, w) => `Sent ${w.sent} via ${w.channel}; the statement covers ${w.bankingDaysCovered} banking day(s) after that (up to ${w.coverage}) and it is not there. Check in RCBC whether Ma'am Mia approved it, or whether it failed.` },
@@ -140,9 +146,17 @@ const SENT_RULES = {
   'check-not-encashed': { key: 'check-out', title: 'Check issued, not yet encashed',
     groupFix: 'Normal until the payee deposits the check. It releases from the statement when the check clears (matched by check number).',
     fix: (r, w) => `Check no. ${w.checkNo} issued ${w.sent}. It releases when the check clears.` },
-  'no-statement': { key: 'no-statement', title: 'GCash / cash: record the release manually',
-    groupFix: 'There is no imported statement for GCash or cash. Open the request and use "Manual release" (it also ticks Bank Confirmed).',
-    fix: () => 'No imported statement for GCash / cash: use "Manual release" on this request.' },
+  'no-statement': { key: 'no-statement', title: 'No statement yet: GCash / cash',
+    groupFix: 'GCash: paste the GCash statement of the wallet used into GCASH IMPORT, then click "Apply bank / GCash statement". Cash: open the request and use "Manual release".',
+    fix: (r, w) => w.channel === 'GCash'
+      ? 'Paste the GCash statement of the wallet used into GCASH IMPORT, then click "Apply bank / GCash statement".'
+      : 'Cash has no statement: use "Manual release" on this request.' },
+  'gcash-overdue': { key: 'gcash-overdue', title: 'Sent by GCash, but not in the GCash statement',
+    groupFix: 'The GCash statement already covers the days after these were sent and no line fits. Check the payee GCash no. and amount on the request, or paste the statement of the wallet actually used.',
+    fix: (r, w) => `Sent ${w.sent} via GCash; the GCash statement covers up to ${w.coverage} and no line fits${r['Payee GCash No.'] ? ` (payee ${r['Payee GCash No.']}, ${r['Amount Requested']})` : ''}. Check the GCash number and amount, or paste the statement of the wallet actually used.` },
+  'gcash-waiting': { key: 'gcash-waiting', title: 'Sent by GCash, waiting for the next GCash statement',
+    groupFix: 'Nothing to do yet: these release once a GCash statement covering the send date is pasted in GCASH IMPORT and applied.',
+    fix: (r, w) => `Sent ${w.sent} via GCash; the GCash statement covers up to ${w.coverage}. Paste a newer one, then apply.` },
 }
 
 export function issuesFor(r, bankWaiting) {
@@ -151,7 +165,7 @@ export function issuesFor(r, bankWaiting) {
   if (st === 'Sent, waiting for approval/posting') {
     const w = bankWaiting?.[r['Request ID']]
     const rule = SENT_RULES[w?.state || 'waiting']
-    out.push({ key: rule.key, title: rule.title, fix: rule.fix(r, w || {}), groupFix: rule.groupFix, owner: w?.state === 'overdue' ? "Accounts Payable / Ma'am Mia" : rule.key === 'sent-waiting' ? "Ma'am Mia (RCBC)" : 'Accounts Payable (Ma\'am Cherry)', info: rule.key === 'sent-waiting' || rule.key === 'check-out' })
+    out.push({ key: rule.key, title: rule.title, fix: rule.fix(r, w || {}), groupFix: rule.groupFix, owner: w?.state === 'overdue' ? "Accounts Payable / Ma'am Mia" : rule.key === 'sent-waiting' ? "Ma'am Mia (RCBC)" : 'Accounts Payable (Ma\'am Cherry)', info: rule.key === 'sent-waiting' || rule.key === 'check-out' || rule.key === 'gcash-waiting' })
   }
   const rule = STATUS_RULES[st]
   if (rule) out.push({ key: rule.key, title: rule.title, fix: rule.fix(r), groupFix: rule.groupFix, note: rule.note ? rule.note(r) : '', owner: r['Next Action By'] || '' })
@@ -180,7 +194,7 @@ export function groupIssues(headers, rows, bankWaiting) {
       g.total += Math.abs(num(r['Open Balance']))
     }
   }
-  const order = ['match-found', 'sent-overdue', 'rel-vs-req', 'no-ref', 'ref-not-in-book', 'book-differs', 'bank-differs', 'not-in-bank', 'receipts-mismatch', 'payback', 'overdue', 'partial', 'receipts-missing', 'no-statement', 'to-send', 'processing', 'auth-hold', 'returned', 'for-liquidation', 'release', 'authorization', 'sent-waiting', 'check-out']
+  const order = ['match-found', 'sent-overdue', 'gcash-overdue', 'rel-vs-req', 'no-ref', 'ref-not-in-book', 'book-differs', 'bank-differs', 'not-in-bank', 'receipts-mismatch', 'payback', 'overdue', 'partial', 'receipts-missing', 'no-statement', 'to-send', 'processing', 'auth-hold', 'returned', 'for-liquidation', 'release', 'authorization', 'sent-waiting', 'gcash-waiting', 'check-out']
   return [...groups.values()].sort((a, b) => {
     const ia = order.indexOf(a.key), ib = order.indexOf(b.key)
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)

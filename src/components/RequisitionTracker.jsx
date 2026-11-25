@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useAuth } from '../store/AuthContext'
 import Modal from './ui/Modal'
-import { issuesFor, groupIssues, rowObj, peso } from './tracker/fixes'
+import { issuesFor, groupIssues, rowObj, peso, gcashShort } from './tracker/fixes'
 import EntryForm, { newRequestInitial, stepInitial, receiptInitial, sentInitial, notApprovedInitial } from './tracker/EntryForms'
 import BankMatches from './tracker/BankMatches'
 import {
@@ -46,7 +46,7 @@ const BANK_COLS = [
 ]
 const SHORT = {
   'Payee / Supplier': 'Payee', 'Purpose / Particulars': 'Purpose', 'Bank / GCash Reference No.': 'Reference',
-  'Reconciliation Check': 'Recon Check', 'Bank Confirmed Manually (tick only if no statement is imported, e.g. GCash)': 'Bank Confirmed Manually',
+  'Reconciliation Check': 'Recon Check', 'Payee GCash No.': 'GCash No.', 'Bank Confirmed Manually (tick only if no statement is imported, e.g. GCash)': 'Bank Confirmed Manually',
 }
 
 const isAmount = (v) => /^\(?-?[\d,]+\.\d{2}\)?$/.test(String(v).trim()) || String(v).trim() === '-'
@@ -106,6 +106,8 @@ export default function RequisitionTracker() {
   const [tab, setTab] = useState('overview')
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [gq, setGq] = useState('')
+  const [gStatus, setGStatus] = useState('')
   const [detail, setDetail] = useState(null)
   const [form, setForm] = useState(null)
   const [toast, setToast] = useState('')
@@ -123,8 +125,17 @@ export default function RequisitionTracker() {
     const rows = ids.map(id => requestsById[id]).filter(Boolean)
     const total = rows.reduce((t, r) => t + (parseFloat(String(r['Amount Requested']).replace(/,/g, '')) || 0), 0)
     setDetail(null)
-    setForm({ kind: 'sent', requestIds: ids, initial: sentInitial(), context: {
-      rows: rows.map(r => ({ id: r['Request ID'], purpose: r['Purpose / Particulars'], amount: r['Amount Requested'] })),
+    const initial = sentInitial()
+    // editing an existing "sent" keeps its date/channel; GCash numbers start from the request
+    if (rows.length === 1 && rows[0]['Sent to Bank Date']) {
+      const [m, d, y] = String(rows[0]['Sent to Bank Date']).split('/')
+      if (y) initial.sentDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+      if (rows[0]['Channel']) initial.channel = rows[0]['Channel']
+      initial.checkNo = rows[0]['Check No. (checks only)'] || ''
+    }
+    initial.gcashNos = Object.fromEntries(rows.map(r => [r['Request ID'], r['Payee GCash No.'] || '']))
+    setForm({ kind: 'sent', requestIds: ids, initial, context: {
+      rows: rows.map(r => ({ id: r['Request ID'], purpose: r['Purpose / Particulars'], payee: r['Payee / Supplier'], amount: r['Amount Requested'] })),
       total: rows.length > 1 ? peso(total) : '' } })
   }
 
@@ -140,7 +151,7 @@ export default function RequisitionTracker() {
       ctx.expected = wht > 0 ? `${r['Amount Requested']} less ${r['Withholding Tax on Receipts']} withholding tax` : r['Amount Requested']
     }
     ctx.summary = `${id} · ${r['Requested By']} · ${r['Purpose / Particulars']} · ₱${r['Amount Requested']} · ${r['Status']}`
-    if (kind === 'release') ctx.summary = 'Use this only for GCash, cash, or to correct a release. Bank transfers and checks release themselves from the statement (Apply bank statement). ' + ctx.summary
+    if (kind === 'release') ctx.summary = 'Use this only for cash, or to correct a release. Bank transfers, checks and GCash release themselves from their statements (Apply bank / GCash statement). ' + ctx.summary
     const initial = kind === 'receipt' ? receiptInitial(r) : stepInitial(headers, row, kind)
     if (kind === 'release' && !initial.amountReleased) initial.amountReleased = String(r['Amount Requested'] || '').replace(/,/g, '')
     setDetail(null)
@@ -186,7 +197,7 @@ export default function RequisitionTracker() {
         </button>
         {canWrite && (
           <button className="btn btn-warning btn-sm" onClick={() => setBankOpen(true)}>
-            <Landmark size={13} /> Apply bank statement{data?.bank?.proposals ? ` (${data.bank.proposals})` : ''}
+            <Landmark size={13} /> Apply bank / GCash statement{data?.bank?.proposals ? ` (${data.bank.proposals})` : ''}
           </button>
         )}
         <a className="btn btn-primary btn-sm" href={sheetUrl} target="_blank" rel="noreferrer">
@@ -219,18 +230,23 @@ export default function RequisitionTracker() {
         <div className="tracker-note">Entry from the app turns on once the sheet script is updated. Until then this page is read-only.</div>
       )}
       {bankOpen && (
-        <BankMatches userId={currentUser?.id} requestsById={requestsById} coverage={data.bank?.coverage}
+        <BankMatches userId={currentUser?.id} requestsById={requestsById} coverage={data.bank?.coverage} gcashCoverage={data.bank?.gcash?.coverage}
           onClose={() => setBankOpen(false)}
           onApplied={(res, n) => { setBankOpen(false); setToast(`${n} bank match${n === 1 ? '' : 'es'} applied to the sheet. Refreshing…`); setTimeout(() => setToast(''), 5000); reload() }} />
       )}
-      {canWrite && data.bank?.coverage && (
+      {canWrite && (data.bank?.coverage || Object.keys(data.bank?.gcash?.coverage || {}).length > 0) && (
         <div className="bank-banner">
           <Landmark size={15} />
-          <span>Bank statement covers up to <strong>{data.bank.coverage}</strong>.</span>
+          {data.bank.coverage && <span>Bank statement covers up to <strong>{data.bank.coverage}</strong>.</span>}
+          {Object.keys(data.bank?.gcash?.coverage || {}).length > 0 && (
+            <span>GCash: {Object.entries(data.bank.gcash.coverage).map(([k, d]) => `${gcashShort(k)} to ${d}`).join(' · ')}.</span>
+          )}
           {data.bank.proposals > 0
             ? <span><strong>{data.bank.proposals}</strong> match{data.bank.proposals === 1 ? '' : 'es'} found ({data.bank.exact} exact) · <a onClick={() => setBankOpen(true)}>review and apply</a></span>
             : <span className="text-muted">No new matches.</span>}
-          {(data.bank.waiting || []).some(w => w.state === 'overdue') && <span className="bank-warn">{data.bank.waiting.filter(w => w.state === 'overdue').length} sent but missing from the statement</span>}
+          {(data.bank.waiting || []).some(w => w.state === 'overdue' || w.state === 'gcash-overdue') && <span className="bank-warn">{data.bank.waiting.filter(w => w.state === 'overdue' || w.state === 'gcash-overdue').length} sent but missing from the statement</span>}
+          {data.bank?.gcash?.gaps?.length > 0 && <span className="bank-warn" title="The GCash running balance jumps: money in or out that the statement doesn't list">{data.bank.gcash.gaps.length} GCash balance gap{data.bank.gcash.gaps.length === 1 ? '' : 's'}</span>}
+          {data.bank?.gcash?.unknownWallet > 0 && <span className="bank-warn">GCash wallet unknown on {data.bank.gcash.unknownWallet} statement{data.bank.gcash.unknownWallet === 1 ? '' : 's'}: type the wallet no. in column H of its title row</span>}
         </div>
       )}
       {form && (
@@ -336,6 +352,22 @@ export default function RequisitionTracker() {
             q={q} setQ={setQ} statusFilter={statusFilter} setStatusFilter={setStatusFilter}
             empty="No bank statement imported yet."
           />
+          {data.gcash?.rows?.length > 0 && (
+            <>
+              <Summary items={data.gcash.summary} />
+              {data.gcash.gaps?.length > 0 && (
+                <div className="tracker-alert"><AlertTriangle size={15} /> GCash running balance jumps {data.gcash.gaps.map(g => `${g.amount > 0 ? '+' : ''}${peso(g.amount)} before ${g.before} (${gcashShort(g.account)})`).join('; ')}. The statement doesn't list that money in or out (e.g. GSave transfers, reversed bills): check it in the GCash app.</div>
+              )}
+              <SheetTable
+                title={`GCash statement (GCASH IMPORT)${data.gcash.rows.length >= 300 ? ' · latest 300 lines' : ''}`}
+                table={data.gcash}
+                statusColumn="Status"
+                badgeColumns={['Status']}
+                q={gq} setQ={setGq} statusFilter={gStatus} setStatusFilter={setGStatus}
+                compact
+              />
+            </>
+          )}
           {data.bankRecon?.missingFromBank?.rows?.some(r => !/^none/i.test(String(r[0]))) && (
             <SheetTable
               title="In the book, not in the bank"

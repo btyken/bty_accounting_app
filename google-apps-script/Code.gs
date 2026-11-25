@@ -3,11 +3,13 @@
  *
  * The sheet is the database. The app reads it (doGet) and writes requisition
  * entries into it (doPost). Writes only ever touch the typing columns:
- *   REQUESTS B–Z and AJ–AL (never A or the formula columns AA–AI)
+ *   REQUESTS B–Z and AJ–AM (never A or the formula columns AA–AI)
  *   RECEIPTS A–S (never the tax-breakdown formula columns T+)
  * Release is proven by the bank statement: requests marked "sent to bank"
  * (AJ–AL) are matched to BANK RECON lines and release + authorization are
- * filled from the bank (Ma'am Mia approves inside RCBC).
+ * filled from the bank (Ma'am Mia approves inside RCBC). GCash requests are
+ * matched the same way to the GCash Transaction History pasted in GCASH IMPORT
+ * (by the payee's GCash number in AM, the biller name, or amount + date).
  * Every write is recorded in the APP LOG tab (created on first use).
  *
  * Install / update: Extensions > Apps Script, paste this file, keep TRACKER_KEY
@@ -25,7 +27,7 @@ const RCPT_FIRST_ROW = 5
 const REQ_FIELDS = {
   request: {
     dateRequested: 2, requestedBy: 3, department: 4, requestType: 5, payee: 6,
-    purpose: 7, account: 8, amountRequested: 9, dateNeeded: 10,
+    purpose: 7, account: 8, amountRequested: 9, dateNeeded: 10, payeeGcashNo: 39,
   },
   process: { processedDate: 11, processingResult: 12, apNotes: 13 },
   release: {
@@ -39,7 +41,7 @@ const REQ_FIELDS = {
   sent: { sentDate: 36, channel: 37, checkNo: 38 },
   authorization: { authorization: 14, authorizationDate: 15 },
 }
-const REQ_WIDTH = 38
+const REQ_WIDTH = 39
 const CHANNELS = ['InstaPay', 'PesoNET', 'Check', 'GCash', 'Cash', 'Other']
 
 const RCPT_FIELDS = {
@@ -53,6 +55,8 @@ const DATE_FIELDS = ['dateRequested', 'dateNeeded', 'processedDate', 'releaseDat
 const NUMBER_FIELDS = ['amountRequested', 'amountReleased', 'bankCharges', 'changeReturned', 'paidBackToEmployee',
   'amount', 'nonVatPortion', 'exempt', 'discount', 'otherCharges', 'vatableAsPrinted', 'vatAsPrinted']
 const BOOL_FIELDS = ['bankConfirmedManually', 'vatRegistered']
+// Kept as text so long numbers and leading zeros survive (GCash refs, 09… numbers).
+const TEXT_FIELDS = ['referenceNo', 'payeeGcashNo', 'checkNo', 'orNo', 'tin']
 
 // Strict dropdowns: value must be in the SETTINGS list (blank allowed).
 const LIST_CHECKS = {
@@ -79,14 +83,16 @@ function doGet(e) {
 
 function snapshot_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet()
+  const lists = lists_(ss)
   return {
     generatedAt: new Date().toISOString(),
     sheetUrl: ss.getUrl(),
     canWrite: true,
     position: currentPosition_(ss),
-    lists: lists_(ss),
+    lists: lists,
     requests: table_(ss, 'REQUESTS', 4, 1, REQ_WIDTH),
-    bank: bankStatus_(ss),
+    bank: bankStatus_(ss, lists),
+    gcash: gcashTable_(ss, lists),
     receipts: table_(ss, 'RECEIPTS', 4, 1, 36),
     unliquidated: Object.assign(
       { summary: summary_(ss, 'UNLIQUIDATED') },
@@ -198,7 +204,10 @@ function doPost(e) {
       case 'addReceipt':    result = addReceipt_(ss, lists, data); break
       case 'markSent':      result = markSent_(ss, lists, data); break
       case 'markNotApproved': result = markNotApproved_(ss, lists, data); break
-      case 'proposeMatches': return json_(Object.assign({ ok: true }, proposeMatches_(ss)))
+      case 'proposeMatches': {
+        const r = proposeMatches_(ss, lists)
+        return json_({ ok: true, proposals: r.proposals, waiting: r.waiting, gcash: { gaps: r.gcash.gaps, unknownWallet: r.gcash.unknownWallet, coverage: Object.keys(r.gcash.coverage).reduce((o, k) => { o[k] = iso_(r.gcash.coverage[k]); return o }, {}) } })
+      }
       case 'applyMatches':  result = applyMatches_(ss, lists, data); break
       default: return json_({ error: 'unknown_action' })
     }
@@ -266,7 +275,13 @@ function markSent_(ss, lists, data) {
     return row
   })
   const vals = { sentDate: data.sentDate || '', channel: data.sentDate ? data.channel : '', checkNo: data.sentDate && data.channel === 'Check' ? String(data.checkNo).trim() : '' }
-  rows.forEach(row => writeFields_(sh, row, REQ_FIELDS.sent, vals, lists))
+  // GCash: the payee's GCash number per request (optional; lets the statement match exactly)
+  const nos = data.channel === 'GCash' && data.gcashNos && typeof data.gcashNos === 'object' ? data.gcashNos : {}
+  const numbers = ids.map(id => (id in nos ? gcashNo_(nos[id]) : null)) // validate all before writing
+  rows.forEach((row, i) => {
+    writeFields_(sh, row, REQ_FIELDS.sent, vals, lists)
+    if (numbers[i] !== null) writeFields_(sh, row, { payeeGcashNo: REQ_FIELDS.request.payeeGcashNo }, { payeeGcashNo: numbers[i] }, lists)
+  })
   return { sheet: 'REQUESTS', row: rows.join(','), requestId: ids.join(', ') }
 }
 
@@ -321,9 +336,11 @@ function writeFields_(sh, row, map, data, lists) {
     if (DATE_FIELDS.indexOf(f) >= 0) v = toDate_(v, f)
     else if (NUMBER_FIELDS.indexOf(f) >= 0) v = toNumber_(v, f)
     else if (BOOL_FIELDS.indexOf(f) >= 0) v = v === true || v === 'true' || v === 'TRUE'
+    else if (f === 'payeeGcashNo') v = gcashNo_(v)
     else v = String(v).trim()
     const listName = LIST_CHECKS[f]
     if (listName && v !== '' && lists[listName].indexOf(v) < 0) throw new Error('"' + v + '" is not a valid ' + f)
+    if (TEXT_FIELDS.indexOf(f) >= 0 && /^\d+$/.test(v)) v = "'" + v
     writes.push([map[f], v])
   })
   writes.forEach(w => sh.getRange(row, w[0]).setValue(w[1]))
@@ -334,6 +351,16 @@ function toDate_(v, f) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v))
   if (!m) throw new Error('Bad date for ' + f + ': ' + v)
   return new Date(+m[1], +m[2] - 1, +m[3])
+}
+
+// "0967 926 3600" / "+639679263600" / "9679263600" → "09679263600"
+function gcashNo_(v) {
+  let d = String(v || '').replace(/\D/g, '')
+  if (d === '') return ''
+  if (/^63\d{10}$/.test(d)) d = '0' + d.slice(2)
+  if (/^9\d{9}$/.test(d)) d = '0' + d
+  if (!/^09\d{9}$/.test(d)) throw new Error('Bad GCash number: ' + v + ' (use 11 digits, 09…)')
+  return d
 }
 
 function toNumber_(v, f) {
@@ -435,6 +462,218 @@ function bankPayments_(ss) {
   return { payments: payments, coverage: coverage }
 }
 
+/* ───────────────────── GCASH STATEMENT (GCASH IMPORT tab) ─────────────────────
+ * Ma'am Cherry pastes the GCash "Transaction History" (the Excel converted from
+ * the GCash PDF) into GCASH IMPORT from A3, one statement below the other.
+ * Each statement block starts with its "GCash Transaction History" title or its
+ * "Date and Time" header. Handled here: repeated headers at page breaks, the
+ * STARTING / ENDING BALANCE and total rows, a balance that slid into the Credit
+ * column, overlapping statements (de-duplicated by wallet + reference + amount).
+ * The wallet number isn't printed on the statement: it is read from the
+ * "Transfer from 09… to 09…" lines, or typed in column H of the block's first row.
+ * The running balance is checked line by line; jumps are reported as gaps
+ * (money in or out that the statement doesn't list).
+ */
+const GCASH_SHEET = 'GCASH IMPORT'
+const GCASH_LAG_DAYS = 1      // GCash is instant: missing after 1 covered day = overdue
+const GCASH_WINDOW_DAYS = 10  // a request matches GCash lines up to 10 days after it was sent
+const GCASH_MAX_FEE = 25      // bills payments may add a convenience fee (e.g. ₱6, ₱12)
+
+function gcDate_(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]') return isNaN(v) ? null : new Date(v.getTime())
+  const t = String(v || '').trim()
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T]+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?)?/i.exec(t)
+  let y, mo, d, h = 0, mi = 0, ap = ''
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; h = +(m[4] || 0); mi = +(m[5] || 0); ap = m[6] || '' }
+  else {
+    m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ ,]+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AP]M)?)?/i.exec(t)
+    if (!m) return null
+    y = +m[3] < 100 ? 2000 + +m[3] : +m[3]; mo = +m[1]; d = +m[2]; h = +(m[4] || 0); mi = +(m[5] || 0); ap = m[6] || ''
+  }
+  if (/pm/i.test(ap) && h < 12) h += 12
+  if (/am/i.test(ap) && h === 12) h = 0
+  return new Date(y, mo - 1, d, h, mi)
+}
+function dayOf_(d) { return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null }
+function gcNum_(v) { if (v === '' || v === null || v === undefined) return null; const n = asNum_(v); return isFinite(n) ? n : null }
+function gcRef_(v) {
+  if (typeof v === 'number') return v.toFixed(0)
+  return String(v || '').trim().replace(/^'/, '')
+}
+
+// "Transfer from A to B" / "Bills Payment to X" / "Payment to X, …" / "Buy Load Transaction for N"
+function gcParse_(desc) {
+  const d = String(desc || '').trim()
+  let m = /^Transfer from (\d{10,13}) to (\d{10,13})/i.exec(d)
+  if (m) return { kind: 'transfer', from: m[1], to: m[2] }
+  m = /^(?:Bills Payment to|Payment to Bills Payment to) (.+)$/i.exec(d)
+  if (m) return { kind: 'bill', to: m[1].trim() }
+  m = /^Payment to ([^,]+)/i.exec(d)
+  if (m) return { kind: 'merchant', to: m[1].trim() }
+  m = /^Buy Load Transaction for (\d{10,13})/i.exec(d)
+  if (m) return { kind: 'load', to: m[1] }
+  return { kind: 'other', to: '' }
+}
+function phone_(s) { const d = String(s || '').replace(/\D/g, ''); return /^63\d{10}$/.test(d) ? '0' + d.slice(2) : d }
+
+function gcashStatement_(ss, lists) {
+  const empty = { lines: [], coverage: {}, gaps: [], unknownWallet: 0, wallets: [] }
+  const sh = ss.getSheetByName(GCASH_SHEET)
+  if (!sh || sh.getLastRow() < 3) return empty
+  const v = sh.getRange(3, 1, sh.getLastRow() - 2, 8).getValues()
+  const cash = (lists && lists.cashAccounts) || lists_(ss).cashAccounts
+  const label = (no) => {
+    if (!no) return ''
+    const hit = cash.find(c => c.replace(/\D/g, '').indexOf(no) >= 0 && /GCASH/i.test(c))
+    return hit || ''
+  }
+
+  // 1) split into statement blocks
+  const blocks = []
+  let b = null
+  const newBlock = (row) => { b = { rows: [], periodEnd: null, start: null, wallet: '', firstRow: row, cols: [0, 1, 2, 3, 4, 5] }; blocks.push(b) }
+  v.forEach((r, i) => {
+    const row = i + 3
+    const a = String(r[0] instanceof Date ? '' : r[0] || '').trim()
+    const bTxt = String(r[1] || '').trim()
+    const override = /09\d{9}/.exec(String(r[7] || '').replace(/[\s-]/g, ''))
+    if (/^GCash Transaction History/i.test(a)) {
+      newBlock(row)
+      const m = /to\s+(\d{4}-\d{2}-\d{2})/i.exec(a)
+      if (m) b.periodEnd = dayOf_(gcDate_(m[1]))
+      if (override) b.wallet = override[0]
+      return
+    }
+    const cells = r.slice(0, 7).map(x => String(x instanceof Date ? 'date' : x || '').trim())
+    const hdr = cells.indexOf('Date and Time')
+    if (hdr >= 0) {
+      if (!b || b.ended) newBlock(row)   // otherwise: header right after the title, or repeated at a page break
+      const map = ['Date and Time', 'Description', 'Reference No.', 'Debit', 'Credit', 'Balance'].map(h => cells.indexOf(h))
+      if (map.every(x => x >= 0)) b.cols = map
+      if (override) b.wallet = override[0]
+      return
+    }
+    if (!b) newBlock(row)
+    if (override && !b.wallet) b.wallet = override[0]
+    const c = b.cols
+    const desc = String(r[c[1]] || '').trim()
+    if (/^STARTING BALANCE$/i.test(desc) || /^STARTING BALANCE$/i.test(a)) {
+      if (b.rows.length > 0 || b.ended) { newBlock(row) }
+      b.start = gcNum_(r[c[5]]) !== null ? gcNum_(r[c[5]]) : gcNum_(r[c[4]])
+      return
+    }
+    if (/^ENDING BALANCE$/i.test(a) || /^ENDING BALANCE$/i.test(desc)) { b.ended = true; b.endBal = gcNum_(r[c[5]]); return }
+    if (/^Total Debit/i.test(a)) { b.ended = true; return }
+    const when = gcDate_(r[c[0]])
+    if (!when || (!desc && !r[c[2]])) return
+    if (b.ended) newBlock(row)
+    let de = gcNum_(r[c[3]]) || 0, cr = gcNum_(r[c[4]]) || 0, bal = gcNum_(r[c[5]])
+    if (bal === null && de > 0 && cr > 0) { bal = cr; cr = 0 }   // PDF conversion put the balance under Credit
+    b.rows.push({ row: row, when: when, desc: desc, ref: gcRef_(r[c[2]]), debit: de, credit: cr, balance: bal, p: gcParse_(desc) })
+  })
+
+  // 2) wallet per block, gaps, de-duplicated lines
+  const out = { lines: [], coverage: {}, gaps: [], unknownWallet: 0, wallets: [] }
+  const seen = {}
+  blocks.forEach(bl => {
+    if (bl.rows.length === 0) return
+    if (!bl.wallet) {
+      const count = {}
+      bl.rows.forEach(x => { if (x.p.kind === 'transfer') [x.p.from, x.p.to].forEach(n => { n = phone_(n); count[n] = (count[n] || 0) + 1 }) })
+      const transfers = bl.rows.filter(x => x.p.kind === 'transfer').length
+      const best = Object.keys(count).sort((p, q) => count[q] - count[p])[0]
+      if (best && count[best] === transfers) bl.wallet = best   // the wallet is on every transfer line
+    }
+    const acct = label(bl.wallet)
+    if (!bl.wallet || !acct) { out.unknownWallet++; }
+    const key = acct || (bl.wallet ? 'GCash ' + bl.wallet : 'GCash (wallet unknown, row ' + bl.firstRow + ')')
+    if (out.wallets.indexOf(key) < 0) out.wallets.push(key)
+    let prev = bl.start
+    bl.rows.forEach(x => {
+      if (prev !== null && x.balance !== null) {
+        const diff = Math.round((x.balance - (prev - x.debit + x.credit)) * 100) / 100
+        if (Math.abs(diff) >= 0.01) out.gaps.push({ account: key, before: iso_(dayOf_(x.when)), row: x.row, desc: x.desc, amount: diff })
+      }
+      if (x.balance !== null) prev = x.balance
+      const k = key + '|' + x.ref + '|' + cents_(x.debit) + '|' + cents_(x.credit) + '|' + x.when.getTime()
+      if (seen[k]) return
+      seen[k] = true
+      out.lines.push({ account: key, knownAccount: !!acct, wallet: bl.wallet, when: x.when, posted: dayOf_(x.when), desc: x.desc, ref: x.ref,
+        debit: x.debit, credit: x.credit, balance: x.balance, kind: x.p.kind, to: x.p.to ? (/^\d+$/.test(x.p.to) ? phone_(x.p.to) : x.p.to) : '', row: x.row })
+    })
+    const last = bl.rows.map(x => dayOf_(x.when)).sort((p, q) => q - p)[0]
+    const cov = bl.periodEnd && bl.periodEnd > last ? bl.periodEnd : last
+    if (!out.coverage[key] || cov > out.coverage[key]) out.coverage[key] = cov
+  })
+  // gaps found in overlapping pastes are the same gap: keep one
+  const g = {}
+  out.gaps = out.gaps.filter(x => { const k = x.account + x.before + x.desc + x.amount; if (g[k]) return false; g[k] = true; return true })
+  out.lines.sort((p, q) => p.when - q.when)
+  return out
+}
+
+// GCash debits as "payments" for the matcher (same shape as bankPayments_)
+function gcashPayments_(gc) {
+  return gc.lines.filter(l => l.debit > 0).map(l => ({
+    key: 'GC:' + (l.wallet || l.account) + ':' + l.ref + ':' + cents_(l.debit), type: 'GCash', account: l.account, knownAccount: l.knownAccount,
+    posted: l.posted, initiated: null, amount: l.debit, fee: 0, feePosted: null, txnId: l.ref, checkNo: '', txnIds: [l.ref],
+    desc: l.desc, kind: l.kind, to: l.to, when: l.when,
+  }))
+}
+
+function words_(s) {
+  return String(s || '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/)
+    .filter(w => w.length >= 3 && ['INC', 'CORP', 'CORPORATION', 'THE', 'PHILIPPINES', 'PHILS', 'COMPANY', 'LIMITED', 'BILLS', 'PAYMENT', 'SERVICES'].indexOf(w) < 0)
+}
+// Biller / merchant name on the GCash line vs the request's payee (e.g. "Meralco" vs "MERALCO")
+function nameMatch_(payee, to) {
+  const a = words_(payee), b = words_(to)
+  if (!a.length || !b.length) return false
+  return a.indexOf(b[0]) >= 0 || b.indexOf(a[0]) >= 0
+}
+
+// How a GCash line fits a request: null (doesn't), or { p (amount/fee split), exact, why }
+function gcashFit_(q, p) {
+  if (!q.sent || p.posted < q.sent || (p.posted - q.sent) / 86400000 > GCASH_WINDOW_DAYS) return null
+  const exp = cents_(expected_(q)), amt = cents_(p.amount)
+  const byNumber = (p.kind === 'transfer' || p.kind === 'load') && q.gcashNo
+  if (byNumber && phone_(q.gcashNo) !== p.to) return null            // different recipient
+  const named = (p.kind === 'bill' || p.kind === 'merchant') && nameMatch_(q.payee, p.to)
+  if (amt === exp) {
+    if (byNumber) return { p: p, exact: true, why: 'GCash to ' + p.to + ' (the payee GCash no. on the request), same amount' }
+    if (named) return { p: p, exact: true, why: 'Bills payment to ' + p.to + ', same amount' }
+    return { p: p, exact: false, why: 'Same amount and date range only' + (p.kind === 'transfer' && !q.gcashNo ? ' (no payee GCash no. on the request)' : '') }
+  }
+  if (named && amt > exp && amt - exp <= GCASH_MAX_FEE * 100) {
+    const fee = (amt - exp) / 100
+    return { p: Object.assign({}, p, { amount: exp / 100, fee: fee, feePosted: p.posted }), exact: true, why: 'Bills payment to ' + p.to + ' incl. ' + fee.toFixed(2) + ' GCash fee' }
+  }
+  return null
+}
+
+function proposeGcash_(gcPays, reqs, usedTxn, proposals) {
+  const pending = reqs.filter(q => q.sent && !q.released && !q.ref && q.auth !== 'Rejected' && q.channel === 'GCash')
+  const open = gcPays.filter(p => !usedTxn[p.txnId])
+  const fits = pending.map(q => ({ q: q, f: open.map(p => gcashFit_(q, p)).filter(Boolean) }))
+  // a line that is exact for exactly one request goes to that request
+  const exactFor = {}
+  fits.forEach(x => x.f.filter(f => f.exact).forEach(f => { (exactFor[f.p.key] = exactFor[f.p.key] || []).push(x.q.id) }))
+  const taken = {}
+  fits.forEach(x => {
+    const ex = x.f.filter(f => f.exact && exactFor[f.p.key].length === 1 && !taken[f.p.key])
+    if (ex.length === 1) {
+      taken[ex[0].p.key] = true; x.done = true
+      proposals.push(build_([x.q], ex[0].p, 'exact', ex[0].why + '. GCash ref ' + ex[0].p.txnId + ', ' + Utilities.formatDate(ex[0].p.when, Session.getScriptTimeZone(), 'MMM d h:mm a')))
+    }
+  })
+  fits.filter(x => !x.done).forEach(x => {
+    const c = x.f.filter(f => !taken[f.p.key]).sort((a, b) => (a.exact ? 0 : 1) - (b.exact ? 0 : 1) || a.p.when - b.p.when)
+    if (c.length === 0) return
+    const why = c.length === 1 ? c[0].why + ': confirm it is this one' : c.length + ' GCash lines fit: pick the right one'
+    proposals.push(build_([x.q], c[0].p, 'choose', why, c.slice(1).map(f => alt_(f.p))))
+  })
+}
+
 function requestRows_(ss) {
   const sh = ss.getSheetByName('REQUESTS')
   const last = Math.min(sh.getLastRow(), REQ_MAX_ROW)
@@ -448,6 +687,7 @@ function requestRows_(ss) {
       id: id, row: REQ_FIRST_ROW + i, requestedBy: r[2], type: r[4], payee: String(r[5] || '').trim().toUpperCase(), purpose: r[6],
       amount: asNum_(r[8]), processing: r[11], auth: String(r[13] || '').trim(), released: asDate_(r[15]), ref: String(r[17] || '').trim(),
       fee: r[19], wht: asNum_(r[34]), sent: asDate_(r[35]), channel: String(r[36] || '').trim(), checkNo: String(r[37] || '').trim(),
+      gcashNo: String(r[38] || '').replace(/\D/g, ''),
     })
   })
   return out
@@ -455,8 +695,10 @@ function requestRows_(ss) {
 
 function expected_(q) { return q.type !== 'Cash Advance' && q.wht > 0 ? q.amount - q.wht : q.amount }
 
-function proposeMatches_(ss) {
+function proposeMatches_(ss, lists) {
   const bank = bankPayments_(ss)
+  const gc = gcashStatement_(ss, lists)
+  const gcPays = gcashPayments_(gc)
   const reqs = requestRows_(ss)
   const usedTxn = {}
   reqs.forEach(q => { if (q.ref) usedTxn[q.ref] = q.id })
@@ -536,13 +778,18 @@ function proposeMatches_(ss) {
       bank: summary_p_(p), writes: splitFees_(qs, p.fee).map((f, i) => ({ requestId: qs[i].id, values: { bankCharges: f } })) })
   })
 
+  // 5) GCash requests against the GCash statement
+  proposeGcash_(gcPays, reqs, usedTxn, proposals)
+
   // Waiting / overdue (for the app)
-  return { proposals: proposals, waiting: waiting_(reqs, bank, proposals) }
+  return { proposals: proposals, waiting: waiting_(reqs, bank, proposals, gc), gcash: gc }
 }
 
 function summary_p_(p) {
-  return { key: p.key, type: p.type, account: p.account, posted: iso_(p.posted), initiated: iso_(p.initiated), amount: Math.round(p.amount * 100) / 100,
+  const o = { key: p.key, type: p.type, account: p.account, posted: iso_(p.posted), initiated: iso_(p.initiated), amount: Math.round(p.amount * 100) / 100,
     fee: Math.round(p.fee * 100) / 100, txnId: p.txnId, checkNo: p.checkNo, desc: p.desc }
+  if (p.type === 'GCash') { o.to = p.to; o.kind = p.kind; o.time = p.when ? ('0' + p.when.getHours()).slice(-2) + ':' + ('0' + p.when.getMinutes()).slice(-2) : '' }
+  return o
 }
 function alt_(p) { return summary_p_(p) }
 function reason_(p) {
@@ -562,15 +809,23 @@ function build_(qs, p, confidence, reason, alternatives) {
     writes: qs.map((q, i) => ({ requestId: q.id, values: {
       releaseDate: iso_(p.posted), releasedFrom: p.account, referenceNo: p.txnId, amountReleased: Math.round(expected_(q) * 100) / 100,
       bankCharges: p.fee > 0 ? fees[i] : '', authorization: 'Approved', authorizationDate: iso_(p.posted),
+      // GCash: confirmed by the GCash statement (BANK RECON only holds RCBC)
+      ...(p.type === 'GCash' ? { bankConfirmedManually: true } : {}),
     } })),
   }
 }
 
-function waiting_(reqs, bank, proposals) {
+function waiting_(reqs, bank, proposals, gc) {
   const inProposal = {}
   proposals.forEach(pr => pr.requestIds.forEach(id => { inProposal[id] = true }))
   const anyCoverage = Object.keys(bank.coverage).map(k => bank.coverage[k]).sort((a, b) => b - a)[0] || null
+  const gcCoverage = gc ? Object.keys(gc.coverage).map(k => gc.coverage[k]).sort((a, b) => b - a)[0] || null : null
   return reqs.filter(q => q.sent && !q.released && q.auth !== 'Rejected').map(q => {
+    if (q.channel === 'GCash' && gcCoverage) {
+      const days = Math.round((gcCoverage - q.sent) / 86400000)
+      return { requestId: q.id, sent: iso_(q.sent), channel: q.channel, checkNo: '', coverage: iso_(gcCoverage), bankingDaysCovered: Math.max(days, 0),
+        state: inProposal[q.id] ? 'match-found' : days >= GCASH_LAG_DAYS ? 'gcash-overdue' : 'gcash-waiting' }
+    }
     const noStatement = q.channel === 'GCash' || q.channel === 'Cash'
     const days = bankingDaysAfter_(q.sent, anyCoverage)
     const lag = LAG_BANKING_DAYS[q.channel]
@@ -580,12 +835,37 @@ function waiting_(reqs, bank, proposals) {
   })
 }
 
-function bankStatus_(ss) {
+function bankStatus_(ss, lists) {
   try {
-    const r = proposeMatches_(ss)
-    const cov = r.waiting.length ? r.waiting[0].coverage : ''
-    return { coverage: cov || coverageOnly_(ss), waiting: r.waiting, proposals: r.proposals.length, exact: r.proposals.filter(p => p.confidence === 'exact').length }
+    const r = proposeMatches_(ss, lists)
+    const gc = r.gcash
+    const gcCov = {}
+    Object.keys(gc.coverage).forEach(k => { gcCov[k] = iso_(gc.coverage[k]) })
+    return { coverage: coverageOnly_(ss), waiting: r.waiting, proposals: r.proposals.length, exact: r.proposals.filter(p => p.confidence === 'exact').length,
+      gcash: { coverage: gcCov, lines: gc.lines.length, gaps: gc.gaps, unknownWallet: gc.unknownWallet,
+        proposals: r.proposals.filter(p => p.bank && p.bank.type === 'GCash').length } }
   } catch (err) { return { error: String(err && err.message || err) } }
+}
+
+// GCASH IMPORT lines for the app's Bank Recon tab (newest first), with the request each released
+function gcashTable_(ss, lists) {
+  try {
+    const gc = gcashStatement_(ss, lists)
+    const reqs = requestRows_(ss)
+    const byRef = {}
+    reqs.forEach(q => { if (q.ref) (byRef[q.ref] = byRef[q.ref] || []).push(q.id) })
+    const tz = Session.getScriptTimeZone()
+    const headers = ['Date and Time', 'Wallet', 'Description', 'Reference No.', 'Debit', 'Credit', 'Balance', 'Request ID', 'Status']
+    const f2 = (n) => n ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'
+    const rows = gc.lines.slice().reverse().slice(0, 300).map(l => [
+      Utilities.formatDate(l.when, tz, 'MM/dd/yyyy h:mm a'), l.account, l.desc, l.ref, f2(l.debit), f2(l.credit), l.balance === null ? '' : f2(l.balance),
+      (byRef[l.ref] || []).join(', '),
+      l.debit > 0 ? (byRef[l.ref] ? 'Matched' : 'No request') : 'Inflow',
+    ])
+    const summary = [{ label: 'GCash lines', value: String(gc.lines.length) }, { label: 'Matched', value: String(rows.filter(r => r[8] === 'Matched').length) },
+      { label: 'Balance gaps', value: String(gc.gaps.length) }]
+    return { headers: headers, rows: rows, summary: summary, gaps: gc.gaps }
+  } catch (err) { return { headers: [], rows: [], error: String(err && err.message || err) } }
 }
 function coverageOnly_(ss) {
   const c = bankPayments_(ss).coverage
@@ -597,8 +877,8 @@ function applyMatches_(ss, lists, data) {
   const wanted = Array.isArray(data.ids) ? data.ids : []
   if (wanted.length === 0) throw new Error('Nothing selected')
   const choice = data.choices || {} // proposal id -> alternative bank key chosen by the user
-  const current = proposeMatches_(ss).proposals
-  const bank = bankPayments_(ss).payments
+  const current = proposeMatches_(ss, lists).proposals
+  const bank = bankPayments_(ss).payments.concat(gcashPayments_(gcashStatement_(ss, lists)))
   const reqs = requestRows_(ss)
   const sh = ss.getSheetByName('REQUESTS')
   const plan = []
@@ -609,12 +889,17 @@ function applyMatches_(ss, lists, data) {
     if (choice[id] && pr.kind === 'release' && choice[id] !== pr.bank.key) {
       const p = bank.find(b => b.key === choice[id])
       if (!p || !pr.alternatives.some(a => a.key === p.key)) throw new Error('Chosen bank line is not one of the options')
-      pr = build_(pr.requestIds.map(rid => reqs.find(q => q.id === rid)), p, 'exact', 'chosen')
+      const qs = pr.requestIds.map(rid => reqs.find(q => q.id === rid))
+      let use = p
+      if (p.type === 'GCash') { const f = gcashFit_(qs[0], p); if (!f) throw new Error('That GCash line no longer fits ' + qs[0].id); use = f.p }
+      pr = build_(qs, use, 'exact', 'chosen')
     }
     plan.push(pr)
   })
   const usedKeys = {}
   plan.forEach(pr => { if (pr.kind === 'release') { if (usedKeys[pr.bank.key]) throw new Error('The same bank line was picked twice'); usedKeys[pr.bank.key] = true } })
+  plan.forEach(pr => { if (pr.kind === 'release' && pr.bank.type === 'GCash' && !lists.cashAccounts.some(c => c === pr.bank.account)) {
+    throw new Error('GCash wallet for ' + pr.requestIds.join(', ') + ' is not in SETTINGS (column I). Type the wallet number in column H of the statement\'s first row in GCASH IMPORT, or add the wallet to SETTINGS.') } })
   // validate all, then write
   const writes = []
   plan.forEach(pr => pr.writes.forEach(w => {

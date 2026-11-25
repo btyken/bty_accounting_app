@@ -10,7 +10,7 @@ import { Save, AlertTriangle, Info } from 'lucide-react'
 export const REQ_HEADER = {
   dateRequested: 'Date Requested', requestedBy: 'Requested By', department: 'Department',
   requestType: 'Request Type', payee: 'Payee / Supplier', purpose: 'Purpose / Particulars',
-  account: 'Account to Charge', amountRequested: 'Amount Requested', dateNeeded: 'Date Needed',
+  account: 'Account to Charge', amountRequested: 'Amount Requested', dateNeeded: 'Date Needed', payeeGcashNo: 'Payee GCash No.',
   processedDate: 'Processed Date', processingResult: 'Processing Result', apNotes: 'Accounts Payable Notes',
   releaseDate: 'Release Date', releasedFrom: 'Released From', referenceNo: 'Bank / GCash Reference No.',
   amountReleased: 'Amount Released', bankCharges: 'Bank Charges',
@@ -20,7 +20,7 @@ export const REQ_HEADER = {
 }
 
 const STEP_FIELDS = {
-  request:   ['dateRequested', 'requestedBy', 'department', 'requestType', 'payee', 'purpose', 'account', 'amountRequested', 'dateNeeded'],
+  request:   ['dateRequested', 'requestedBy', 'department', 'requestType', 'payee', 'purpose', 'account', 'amountRequested', 'dateNeeded', 'payeeGcashNo'],
   process:   ['processedDate', 'processingResult', 'apNotes'],
   release:   ['releaseDate', 'releasedFrom', 'referenceNo', 'amountReleased', 'bankCharges', 'bankConfirmedManually'],
   liquidate: ['liquidationDate', 'changeReturned', 'changeReturnedTo', 'paidBackToEmployee', 'paidBackDate'],
@@ -42,6 +42,13 @@ const toAmt = (s) => {
   return t.replace(/,/g, '')
 }
 const isDate = (f) => /date/i.test(f)
+// "+63 967 926 3600" → "09679263600" (the script checks it too)
+export const cleanGcash = (s) => {
+  let d = String(s || '').replace(/\D/g, '')
+  if (/^63\d{10}$/.test(d)) d = '0' + d.slice(2)
+  if (/^9\d{9}$/.test(d)) d = '0' + d
+  return d
+}
 const isAmt = (f) => /amount|charges|changeReturned$|paidBackToEmployee|discount$|nonVat|exempt|otherCharges|AsPrinted/.test(f)
 
 export function valuesFromRow(headers, row, step) {
@@ -102,7 +109,7 @@ const TITLES = {
   newRequest: 'New request',
   request: 'Edit request details',
   process: 'Processing',
-  release: 'Manual release (GCash / cash / correction)',
+  release: 'Manual release (cash / correction)',
   sent: 'Sent to bank',
   notApproved: 'Not approved in RCBC',
   liquidate: 'Liquidation',
@@ -145,7 +152,13 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
       let payload
       const clean = (o) => Object.fromEntries(Object.entries(o).map(([k, x]) => [k, typeof x === 'string' ? x.trim() : x]))
       if (form.kind === 'newRequest') payload = { action: 'addRequest', data: clean(v) }
-      else if (form.kind === 'sent') payload = { action: 'markSent', data: clean({ ...v, requestIds: form.requestIds }) }
+      else if (form.kind === 'sent') {
+        const gcashNos = v.channel === 'GCash' ? Object.fromEntries(Object.entries(v.gcashNos || {}).filter(([, n]) => String(n || '').trim()).map(([id, n]) => [id, cleanGcash(n)])) : undefined
+        const bad = Object.entries(gcashNos || {}).find(([, n]) => !/^09\d{9}$/.test(n))
+        if (bad) throw new Error(`GCash number for ${bad[0]} should be 11 digits starting with 09.`)
+        const { gcashNos: _omit, ...rest } = v
+        payload = { action: 'markSent', data: clean({ ...rest, requestIds: form.requestIds, ...(gcashNos ? { gcashNos } : {}) }) }
+      }
       else if (form.kind === 'notApproved') payload = { action: 'markNotApproved', data: clean({ ...v, requestId: form.requestId }) }
       else if (form.kind === 'receipt') {
         const requestId = form.requestId || v.requestId
@@ -194,6 +207,9 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
           <F label="Amount requested *" hint="For a supplier payment: the full invoice amount, before withholding tax.">
             <input className="form-input" type="number" step="0.01" min="0" value={v.amountRequested} onChange={e => set('amountRequested')(e.target.value)} />
           </F>
+          <F label="Payee GCash no." hint="Only if this will be paid by GCash. The GCash statement then matches it exactly.">
+            <input className="form-input" inputMode="numeric" value={v.payeeGcashNo || ''} onChange={e => set('payeeGcashNo')(e.target.value)} onBlur={e => set('payeeGcashNo')(cleanGcash(e.target.value))} placeholder="09XX XXX XXXX" />
+          </F>
         </div>
       )}
 
@@ -205,13 +221,25 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
             ))}</div>
             {ctx.total && <div className="field-hint">Total {ctx.total}. If these go out as one transfer, the bank line must equal this total.</div>}
           </F>
-          <F label="Date sent / set up in RCBC *"><input className="form-input" type="date" value={v.sentDate} onChange={e => set('sentDate')(e.target.value)} /></F>
-          <F label="Channel *" hint="InstaPay posts once Ma'am Mia approves; PesoNET takes 1–2 banking days; checks release when encashed.">
+          <F label="Date sent (RCBC / GCash) *"><input className="form-input" type="date" value={v.sentDate} onChange={e => set('sentDate')(e.target.value)} /></F>
+          <F label="Channel *" hint="InstaPay posts once Ma'am Mia approves; PesoNET takes 1–2 banking days; checks release when encashed; GCash releases from the GCash statement.">
             <Select value={v.channel} onChange={set('channel')} options={L.channels || ['InstaPay', 'PesoNET', 'Check', 'GCash', 'Cash', 'Other']} />
           </F>
           {v.channel === 'Check' && <F label="Check no. *"><input className="form-input" value={v.checkNo} onChange={e => set('checkNo')(e.target.value.trim())} placeholder="e.g. 1200000703" /></F>}
-          {(v.channel === 'GCash' || v.channel === 'Cash') && (
-            <F label=" " span><div className="form-context" style={{ margin: 0 }}><Info size={14} /> GCash and cash have no imported statement: after sending, open the request and use “Manual release”.</div></F>
+          {v.channel === 'GCash' && (
+            <F label="Payee GCash no. (one per request)" span hint="Bills payments (Meralco, Maynilad, PLDT…) don't need a number: they match by biller name. For transfers to a person, the number makes the match exact; without it the app asks you to confirm the line.">
+              <div className="sent-list">{(ctx.rows || []).map(r => (
+                <div key={r.id} className="match-req">
+                  <span className="fix-id">{r.id}</span><span className="fix-purpose">{r.payee || r.purpose}</span>
+                  <input className="form-input form-input-sm" style={{ maxWidth: 170 }} inputMode="numeric" placeholder="09XX XXX XXXX"
+                    value={(v.gcashNos || {})[r.id] ?? ''} onChange={e => setV(s => ({ ...s, gcashNos: { ...(s.gcashNos || {}), [r.id]: e.target.value } }))} />
+                </div>
+              ))}</div>
+              <div className="form-context" style={{ margin: '8px 0 0' }}><Info size={14} /> Releases from the GCash statement: paste it in GCASH IMPORT, then “Apply bank / GCash statement”.</div>
+            </F>
+          )}
+          {v.channel === 'Cash' && (
+            <F label=" " span><div className="form-context" style={{ margin: 0 }}><Info size={14} /> Cash has no statement: after paying, open the request and use “Manual release”.</div></F>
           )}
         </div>
       )}
@@ -244,7 +272,7 @@ export default function EntryForm({ form, lists, userId, onClose, onSaved }) {
           </F>
           <F label="Bank charges"><input className="form-input" type="number" step="0.01" min="0" value={v.bankCharges} onChange={e => set('bankCharges')(e.target.value)} /></F>
           <F label=" ">
-            <label className="check-row"><input type="checkbox" checked={!!v.bankConfirmedManually} onChange={e => set('bankConfirmedManually')(e.target.checked)} /> Bank confirmed manually (only for GCash or accounts with no imported statement)</label>
+            <label className="check-row"><input type="checkbox" checked={!!v.bankConfirmedManually} onChange={e => set('bankConfirmedManually')(e.target.checked)} /> Bank confirmed manually (only for accounts with no imported statement)</label>
           </F>
         </div>
       )}
@@ -314,7 +342,7 @@ export function sentInitial() { return { sentDate: today(), channel: 'InstaPay',
 export function notApprovedInitial() { return { status: 'Rejected', date: today(), note: '' } }
 
 export function newRequestInitial() {
-  return { dateRequested: today(), requestedBy: '', department: '', requestType: '', payee: '', purpose: '', account: '', amountRequested: '', dateNeeded: '' }
+  return { dateRequested: today(), requestedBy: '', department: '', requestType: '', payee: '', purpose: '', account: '', amountRequested: '', dateNeeded: '', payeeGcashNo: '' }
 }
 export function stepInitial(headers, row, step) {
   const v = valuesFromRow(headers, row, step)

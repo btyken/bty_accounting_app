@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Modal from '../ui/Modal'
 import { postToSheet } from './EntryForms'
-import { peso } from './fixes'
-import { Landmark, AlertTriangle, CheckCircle2, RefreshCw, Clock } from 'lucide-react'
+import { peso, gcashShort } from './fixes'
+import { Landmark, AlertTriangle, CheckCircle2, RefreshCw, Clock, Smartphone } from 'lucide-react'
 
 /* "Apply bank statement": the script proposes which bank lines released which
    requests (Ma'am Mia approves inside RCBC; the statement is the proof).
@@ -16,6 +16,14 @@ const fmtDate = (iso) => {
 }
 
 function BankLine({ b }) {
+  if (b.type === 'GCash') {
+    return (
+      <span className="bank-line">
+        <strong>GCash</strong> {gcashShort(b.account)} · {b.kind === 'transfer' ? `to ${b.to}` : b.to || b.desc} · ref {b.txnId} · {peso(b.amount)}
+        {b.fee > 0 ? ` + ${peso(b.fee)} fee` : ''} · {fmtDate(b.posted)}{b.time ? ` ${b.time}` : ''}
+      </span>
+    )
+  }
   return (
     <span className="bank-line">
       <strong>{b.type}</strong> {b.txnId}{b.checkNo ? ` · check ${b.checkNo}` : ''} · {peso(b.amount)}
@@ -24,8 +32,8 @@ function BankLine({ b }) {
   )
 }
 
-export default function BankMatches({ userId, requestsById, coverage, onClose, onApplied }) {
-  const [state, setState] = useState({ loading: true, error: '', proposals: [], waiting: [] })
+export default function BankMatches({ userId, requestsById, coverage, gcashCoverage, onClose, onApplied }) {
+  const [state, setState] = useState({ loading: true, error: '', proposals: [], waiting: [], gcash: null })
   const [picked, setPicked] = useState({})   // proposal id -> true
   const [choice, setChoice] = useState({})   // proposal id -> bank key
   const [saving, setSaving] = useState(false)
@@ -36,7 +44,7 @@ export default function BankMatches({ userId, requestsById, coverage, onClose, o
     try {
       const res = await postToSheet(userId, { action: 'proposeMatches', data: {} })
       const proposals = res.proposals || []
-      setState({ loading: false, error: '', proposals, waiting: res.waiting || [] })
+      setState({ loading: false, error: '', proposals, waiting: res.waiting || [], gcash: res.gcash || null })
       setPicked(Object.fromEntries(proposals.filter(p => p.confidence === 'exact').map(p => [p.id, true])))
       setChoice({})
     } catch (e) {
@@ -50,7 +58,8 @@ export default function BankMatches({ userId, requestsById, coverage, onClose, o
     choose: state.proposals.filter(p => p.kind === 'release' && p.confidence !== 'exact'),
     fees: state.proposals.filter(p => p.kind === 'fee'),
     overdue: state.waiting.filter(w => w.state === 'overdue'),
-    waiting: state.waiting.filter(w => w.state === 'waiting' || w.state === 'check-not-encashed'),
+    gcashOverdue: state.waiting.filter(w => w.state === 'gcash-overdue'),
+    waiting: state.waiting.filter(w => w.state === 'waiting' || w.state === 'check-not-encashed' || w.state === 'gcash-waiting'),
   }), [state])
 
   const selectedIds = Object.keys(picked).filter(k => picked[k])
@@ -122,11 +131,25 @@ export default function BankMatches({ userId, requestsById, coverage, onClose, o
   )
 
   return (
-    <Modal open onClose={saving ? () => {} : onClose} size="modal-lg" title="Apply bank statement" footer={footer}>
+    <Modal open onClose={saving ? () => {} : onClose} size="modal-lg" title="Apply bank / GCash statement" footer={footer}>
       <div className="form-context">
         <Landmark size={14} style={{ flexShrink: 0, marginTop: 2 }} />
-        <span>Bank statement covers up to <strong>{coverage ? fmtDate(coverage) : '—'}</strong> (paste new exports in BANK IMPORT every Mon / Wed / Fri). Applying fills Release Date, Released From, Reference No., Amount, Bank Charges and Authorization = Approved from the bank line.</span>
+        <span>
+          RCBC statement covers up to <strong>{coverage ? fmtDate(coverage) : '—'}</strong> (paste new exports in BANK IMPORT every Mon / Wed / Fri).
+          {' '}GCash: {Object.keys(gcashCoverage || {}).length
+            ? Object.entries(gcashCoverage).map(([k, d]) => <span key={k}><strong>{gcashShort(k)}</strong> to <strong>{fmtDate(d)}</strong> </span>)
+            : 'no statement in GCASH IMPORT yet. '}
+          Applying fills Release Date, Released From, Reference No., Amount, Bank Charges and Authorization = Approved from the statement line.
+        </span>
       </div>
+      {state.gcash?.gaps?.length > 0 && (
+        <div className="match-note warn-note">
+          <AlertTriangle size={13} /> GCash running balance jumps: {state.gcash.gaps.map(g => `${g.amount > 0 ? '+' : ''}${peso(g.amount)} before ${fmtDate(g.before)} (${gcashShort(g.account)})`).join('; ')}. The statement doesn't list that money in or out. Check it in the GCash app (e.g. GSave transfer, reversed bill).
+        </div>
+      )}
+      {state.gcash?.unknownWallet > 0 && (
+        <div className="form-error"><Smartphone size={14} /> {state.gcash.unknownWallet} GCash statement(s) in GCASH IMPORT have no known wallet. Type the wallet's GCash number in column H of the statement's title row (or add the wallet to SETTINGS column I).</div>
+      )}
       {saveError && <div className="form-error"><AlertTriangle size={14} /> {saveError}</div>}
       {state.loading && <div className="empty"><div className="empty-icon"><RefreshCw size={28} className="spin" /></div><p>Reading the bank statement…</p></div>}
       {state.error && <div className="form-error"><AlertTriangle size={14} /> {state.error}</div>}
@@ -134,7 +157,7 @@ export default function BankMatches({ userId, requestsById, coverage, onClose, o
       {!state.loading && !state.error && (
         <>
           {groups.exact.length + groups.choose.length + groups.fees.length === 0 && (
-            <div className="fix-clear"><CheckCircle2 size={16} /> No new matches. Every sent request found in the statement is already recorded.</div>
+            <div className="fix-clear"><CheckCircle2 size={16} /> No new matches. Every sent request found in the statements is already recorded.</div>
           )}
           {groups.exact.length > 0 && <h4 className="match-h">Ready: exact matches ({groups.exact.length})</h4>}
           {groups.exact.map(p => <Proposal key={p.id} p={p} />)}
@@ -155,13 +178,25 @@ export default function BankMatches({ userId, requestsById, coverage, onClose, o
               ))}
             </>
           )}
+          {groups.gcashOverdue.length > 0 && (
+            <>
+              <h4 className="match-h warn"><AlertTriangle size={14} /> Sent by GCash, but not in the GCash statement ({groups.gcashOverdue.length})</h4>
+              <div className="match-note">The GCash statement covers the days after these were sent and no line fits. Check the payee GCash no. and amount on the request, or paste the statement of the wallet actually used.</div>
+              {groups.gcashOverdue.map(w => (
+                <div key={w.requestId} className="match-wait">
+                  {reqLabel(w.requestId)}
+                  <div className="match-hint">Sent {fmtDate(w.sent)} via GCash · statement covers up to {fmtDate(w.coverage)}{requestsById[w.requestId]?.['Payee GCash No.'] ? ` · payee ${requestsById[w.requestId]['Payee GCash No.']}` : ' · no payee GCash no.'}</div>
+                </div>
+              ))}
+            </>
+          )}
           {groups.waiting.length > 0 && (
             <>
               <h4 className="match-h muted"><Clock size={14} /> Still waiting: normal ({groups.waiting.length})</h4>
               {groups.waiting.map(w => (
                 <div key={w.requestId} className="match-wait">
                   {reqLabel(w.requestId)}
-                  <div className="match-hint">{w.state === 'check-not-encashed' ? `Check ${w.checkNo} issued ${fmtDate(w.sent)}, not yet encashed` : `Sent ${fmtDate(w.sent)} via ${w.channel}: waiting for Ma'am Mia / posting`}</div>
+                  <div className="match-hint">{w.state === 'check-not-encashed' ? `Check ${w.checkNo} issued ${fmtDate(w.sent)}, not yet encashed` : w.state === 'gcash-waiting' ? `Sent ${fmtDate(w.sent)} via GCash: waiting for a GCash statement after ${fmtDate(w.coverage)}` : `Sent ${fmtDate(w.sent)} via ${w.channel}: waiting for Ma'am Mia / posting`}</div>
                 </div>
               ))}
             </>
